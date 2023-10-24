@@ -1,0 +1,48 @@
+{
+  "name": "@akadenia/logger",
+  "version": "1.0.0",
+  "description": "Akadenia library: Logger",
+  "main": "dist/index.js",
+  "types": "types/index.d.ts",
+  "keywords": [
+    "logger",
+    "akadenia"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.json",
+    "test": "jest",
+    "format": "prettier --write \"./**/*.{ts,tsx,js,jsx,json,yml}\"",
+    "lint": "prettier --check \"./**/*.{ts,tsx,js,jsx,json,yml}\"",
+    "prepare": "npm run build",
+    "version": "git add -A src",
+    "updateLink": "pm run build && npm rm @akadenia/logger -g && npm link"
+  },
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/akadenia/xander.git"
+  },
+  "author": "Akadenia",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/akadenia/xander/issues"
+  },
+  "homepage": "https://github.com/akadenia/xander#readme",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "dependencies": {
+    "debug": "^4.3.4"
+  },
+  "devDependencies": {
+    "@jest/globals": "^29.7.0",
+    "@types/jest": "^29.5.6",
+    "@types/node": "^18.16.1",
+    "jest": "^29.7.0",
+    "prettier": "^3.0.3",
+    "ts-jest": "^29.1.1",
+    "typescript": "^5.2.2"
+  }
+}
