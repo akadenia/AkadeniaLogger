@@ -1,4 +1,4 @@
-import { AkadeniaLogger } from "./typings"
+import * as AkadeniaLogger from "./typings"
 
 export class Logger implements AkadeniaLogger.ILogger {
   name: string = "root"
@@ -128,4 +128,4 @@ export class Logger implements AkadeniaLogger.ILogger {
   }
 }
 
-export * from "./typings"
+export * as AkadeniaLogger from "./typings"
