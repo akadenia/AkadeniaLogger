@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Akadenia library: Logger",
   "main": "dist/index.js",
-  "types": "types/index.d.ts",
+  "types": "dist/index.d.ts",
   "keywords": [
     "logger",
     "akadenia"

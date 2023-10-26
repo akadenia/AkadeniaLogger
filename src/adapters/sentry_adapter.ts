@@ -1,4 +1,4 @@
-import { AkadeniaLogger } from "../logger"
+import { Severity, ILogger, Options } from "../logger"
 
 export enum SentryLoggerSeverity {
   Warning = "warning",
@@ -8,53 +8,53 @@ export enum SentryLoggerSeverity {
   Fatal = "fatal",
 }
 
-export class SentryLoggerAdapter implements AkadeniaLogger.ILogger {
+export class SentryLoggerAdapter implements ILogger {
   name: string = "sentry"
 
   Sentry: any
 
-  minimumLogLevel: AkadeniaLogger.Severity
+  minimumLogLevel: Severity
 
-  constructor(Sentry: any, minimumLogLevel = AkadeniaLogger.Severity.Debug) {
+  constructor(Sentry: any, minimumLogLevel = Severity.Debug) {
     this.Sentry = Sentry
     this.minimumLogLevel = minimumLogLevel
   }
 
-  private setScope(options: AkadeniaLogger.Options) {
+  private setScope(options: Options) {
     this.Sentry.withScope((scope: any) => {
       scope.setExtra("extra-data", JSON.stringify(options.extraData, null, 4))
     })
   }
 
-  debug(message: string, options?: AkadeniaLogger.Options | undefined): void {
+  debug(message: string, options?: Options | undefined): void {
     if (options?.extraData) {
       this.setScope(options)
     }
     this.Sentry.captureMessage(message, SentryLoggerSeverity.Info)
   }
 
-  info(message: string, options?: AkadeniaLogger.Options | undefined): void {
+  info(message: string, options?: Options | undefined): void {
     if (options?.extraData) {
       this.setScope(options)
     }
     this.Sentry.captureMessage(message, SentryLoggerSeverity.Info)
   }
 
-  warn(message: string, options?: AkadeniaLogger.Options | undefined): void {
+  warn(message: string, options?: Options | undefined): void {
     if (options?.extraData) {
       this.setScope(options)
     }
     this.Sentry.captureMessage(message, SentryLoggerSeverity.Warning)
   }
 
-  error(message: string, options?: AkadeniaLogger.Options | undefined): void {
+  error(message: string, options?: Options | undefined): void {
     if (options?.extraData) {
       this.setScope(options)
     }
     this.Sentry.captureMessage(message, SentryLoggerSeverity.Error)
   }
 
-  exception(message: string, exception: Error, options?: AkadeniaLogger.Options | undefined): void {
+  exception(message: string, exception: Error, options?: Options | undefined): void {
     if (options?.extraData) {
       this.setScope(options)
     }

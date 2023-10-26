@@ -1,25 +1,58 @@
-import * as AkadeniaLogger from "./typings"
+export enum Severity {
+  Debug = 1,
+  Info,
+  Warn,
+  Error,
+}
 
-export class Logger implements AkadeniaLogger.ILogger {
+export type Options = {
+  overrideConsole?: boolean
+  overrideDebug?: boolean
+  extraData?: any
+}
+
+export type Config = {
+  console?: boolean
+  debug?: boolean
+  minimumLevel?: Severity
+}
+
+export interface ILogger {
+  name: string
+
+  minimumLogLevel: Severity
+
+  debug(message: string, options?: Options): void
+
+  info(message: string, options?: Options): void
+
+  warn(message: string, options?: Options): void
+
+  error(message: string, options?: Options): void
+
+  exception(message: string, exception: Error, options?: Options): void
+}
+
+export class Logger implements ILogger {
   name: string = "root"
-  defaultConfig?: AkadeniaLogger.Config
+  defaultConfig?: Config
   namespace?: string
 
-  minimumLogLevel: AkadeniaLogger.Severity
-  adapters: AkadeniaLogger.ILogger[] = []
+  minimumLogLevel: Severity
+  adapters: ILogger[] = []
 
-  constructor(defaultConfig?: AkadeniaLogger.Config, minimumLogLevel = AkadeniaLogger.Severity.Debug) {
+  constructor(defaultConfig?: Config, minimumLogLevel = Severity.Debug) {
     this.defaultConfig = defaultConfig
     this.minimumLogLevel = minimumLogLevel
   }
 
-  private checkConsole(options?: AkadeniaLogger.Options): boolean {
+  private checkConsole(options?: Options): boolean {
     if (options && options.overrideConsole !== undefined) return !!options?.overrideConsole
 
     return !!this.defaultConfig?.console
   }
 
-  private checkDebug(options?: AkadeniaLogger.Options): boolean {
+  private checkDebug(options?: Options): boolean {
     if (options && options.overrideDebug !== undefined) return !!options?.overrideDebug
 
     return !!this.defaultConfig?.debug
@@ -35,11 +68,11 @@ export class Logger implements AkadeniaLogger.ILogger {
     return regexp.test(namespace)
   }
 
-  addAkadeniaLogger(logger: AkadeniaLogger.ILogger): void {
+  addLogger(logger: ILogger): void {
     this.adapters.push(logger)
   }
 
-  setMinimumLogLevel(minimumLogLevel: AkadeniaLogger.Severity): void {
+  setMinimumLogLevel(minimumLogLevel: Severity): void {
     this.minimumLogLevel = minimumLogLevel
   }
 
@@ -51,8 +84,8 @@ export class Logger implements AkadeniaLogger.ILogger {
     this.namespace = namespace
   }
 
-  debug(message: string, options?: AkadeniaLogger.Options) {
-    if (this.minimumLogLevel > AkadeniaLogger.Severity.Debug) return
+  debug(message: string, options?: Options) {
+    if (this.minimumLogLevel > Severity.Debug) return
 
     if (this.checkConsole(options)) console.log(this.prefixWithNamespace(message))
 
@@ -73,8 +106,8 @@ export class Logger implements AkadeniaLogger.ILogger {
     })
   }
 
-  info(message: string, options?: AkadeniaLogger.Options) {
-    if (this.minimumLogLevel > AkadeniaLogger.Severity.Info) return
+  info(message: string, options?: Options) {
+    if (this.minimumLogLevel > Severity.Info) return
 
     if (this.checkConsole(options)) console.log(this.prefixWithNamespace(message))
 
@@ -87,8 +120,8 @@ export class Logger implements AkadeniaLogger.ILogger {
     })
   }
 
-  warn(message: string, options?: AkadeniaLogger.Options) {
-    if (this.minimumLogLevel > AkadeniaLogger.Severity.Warn) return
+  warn(message: string, options?: Options) {
+    if (this.minimumLogLevel > Severity.Warn) return
 
     if (this.checkConsole(options)) console.warn(this.prefixWithNamespace(message))
 
@@ -101,8 +134,8 @@ export class Logger implements AkadeniaLogger.ILogger {
     })
   }
 
-  error(message: string, options?: AkadeniaLogger.Options) {
-    if (this.minimumLogLevel > AkadeniaLogger.Severity.Error) return
+  error(message: string, options?: Options) {
+    if (this.minimumLogLevel > Severity.Error) return
 
     if (this.checkConsole(options)) console.error(this.prefixWithNamespace(message))
 
@@ -115,7 +148,7 @@ export class Logger implements AkadeniaLogger.ILogger {
     })
   }
 
-  exception(message: string, exception: Error, options?: AkadeniaLogger.Options) {
+  exception(message: string, exception: Error, options?: Options) {
     if (this.checkConsole(options)) console.error(this.prefixWithNamespace(message))
 
     this.debug(message, { overrideConsole: false })
@@ -127,5 +160,3 @@ export class Logger implements AkadeniaLogger.ILogger {
     })
   }
 }
-
-export * as AkadeniaLogger from "./typings"

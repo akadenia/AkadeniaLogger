@@ -1,6 +1,6 @@
 import { jest, describe, expect, it, afterEach } from "@jest/globals"
 
-import { AkadeniaLogger, Logger } from "../src/logger"
+import { Logger, Severity } from "../src/logger"
 
 afterEach(() => {
   jest.clearAllMocks()
@@ -136,7 +136,7 @@ describe("Logger namespace test", () => {
   })
 
   it("should succeed and not log below minimum log level", () => {
-    const logger = new Logger({ console: true }, AkadeniaLogger.Severity.Error)
+    const logger = new Logger({ console: true }, Severity.Error)
     const message = "Test Error #4"
 
     const spy = jest.spyOn(console, "warn")
@@ -147,7 +147,7 @@ describe("Logger namespace test", () => {
   })
 
   it("should succeed and log when equal minimum log level", () => {
-    const logger = new Logger({ console: true }, AkadeniaLogger.Severity.Error)
+    const logger = new Logger({ console: true }, Severity.Error)
     const message = "Test Error #5"
 
     const spy = jest.spyOn(console, "error")
@@ -158,7 +158,7 @@ describe("Logger namespace test", () => {
   })
 
   it("should succeed and log when above minimum log level", () => {
-    const logger = new Logger({ console: true }, AkadeniaLogger.Severity.Warn)
+    const logger = new Logger({ console: true }, Severity.Warn)
     const message = "Test Error #5"
 
     const spy = jest.spyOn(console, "error")
