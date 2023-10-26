@@ -22,14 +22,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/akadenia/xander.git"
+    "url": "git+https://github.com/akadenia/AkadeniaLogger.git.git"
   },
   "author": "Akadenia",
   "license": "UNLICENSED",
   "bugs": {
-    "url": "https://github.com/akadenia/xander/issues"
+    "url": "https://github.com/akadenia/AkadeniaLogger.git/issues"
   },
-  "homepage": "https://github.com/akadenia/xander#readme",
+  "homepage": "https://github.com/akadenia/AkadeniaLogger.git#readme",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
   },
