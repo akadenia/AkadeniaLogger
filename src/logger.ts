@@ -13,7 +13,6 @@ export type Options = {
 
 export type Config = {
   console?: boolean
-  debug?: boolean
   minimumLevel?: Severity
 }
 
@@ -52,22 +51,6 @@ export class Logger implements ILogger {
     return !!this.defaultConfig?.console
   }
 
-  private checkDebug(options?: Options): boolean {
-    if (options && options.overrideDebug !== undefined) return !!options?.overrideDebug
-
-    return !!this.defaultConfig?.debug
-  }
-
-  private prefixWithNamespace(message: string): string {
-    return this.namespace?.length ? `${this.namespace} - ${message}` : message
-  }
-
-  private validateNamespace(namespace: string): boolean {
-    const regexp = /^\w+(:\w+)*$/
-
-    return regexp.test(namespace)
-  }
-
   addLogger(logger: ILogger): void {
     this.adapters.push(logger)
   }
@@ -76,28 +59,10 @@ export class Logger implements ILogger {
     this.minimumLogLevel = minimumLogLevel
   }
 
-  setDebugNamespace(namespace: string): void {
-    if (!this.validateNamespace(namespace)) {
-      throw new SyntaxError("Invalid namespace. Use colon (:) separated alphanumeric words")
-    }
-
-    this.namespace = namespace
-  }
-
   debug(message: string, options?: Options) {
     if (this.minimumLogLevel > Severity.Debug) return
 
-    if (this.checkConsole(options)) console.log(this.prefixWithNamespace(message))
-
-    if (this.checkDebug(options)) {
-      const debug = require("debug")
-
-      if (this.namespace) {
-        debug.extend(this.namespace)
-      }
-
-      debug(message)
-    }
+    if (this.checkConsole(options)) console.log(message)
 
     this.adapters.forEach((adapter) => {
       try {
@@ -109,7 +74,7 @@ export class Logger implements ILogger {
   info(message: string, options?: Options) {
     if (this.minimumLogLevel > Severity.Info) return
 
-    if (this.checkConsole(options)) console.log(this.prefixWithNamespace(message))
+    if (this.checkConsole(options)) console.log(message)
 
     this.debug(message, { overrideConsole: false })
 
@@ -123,7 +88,7 @@ export class Logger implements ILogger {
   warn(message: string, options?: Options) {
     if (this.minimumLogLevel > Severity.Warn) return
 
-    if (this.checkConsole(options)) console.warn(this.prefixWithNamespace(message))
+    if (this.checkConsole(options)) console.warn(message)
 
     this.debug(message, { overrideConsole: false })
 
@@ -137,7 +102,7 @@ export class Logger implements ILogger {
   error(message: string, options?: Options) {
     if (this.minimumLogLevel > Severity.Error) return
 
-    if (this.checkConsole(options)) console.error(this.prefixWithNamespace(message))
+    if (this.checkConsole(options)) console.error(message)
 
     this.debug(message, { overrideConsole: false })
 
@@ -149,7 +114,7 @@ export class Logger implements ILogger {
   }
 
   exception(message: string, exception: Error, options?: Options) {
-    if (this.checkConsole(options)) console.error(this.prefixWithNamespace(message))
+    if (this.checkConsole(options)) console.error(message)
 
     this.debug(message, { overrideConsole: false })
 

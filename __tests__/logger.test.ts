@@ -113,28 +113,6 @@ describe("Logger tests with specific log message to override default logger conf
 })
 
 describe("Logger namespace test", () => {
-  it("should accept right format namespace", () => {
-    const logger = new Logger()
-
-    const expected = ["worker", "worker:a", "worker:a:b", "http:1", "123"]
-
-    expected.forEach((value) => {
-      logger.setDebugNamespace(value)
-      expect(logger.namespace).toEqual(value)
-    })
-  })
-
-  it("should fail wrong formatted namespace", () => {
-    const logger = new Logger()
-
-    const expected = ["invalid namespace", "invalid:", "#$@$#$@"]
-    expected.forEach((value) => {
-      expect(() => {
-        logger.setDebugNamespace(value)
-      }).toThrow()
-    })
-  })
-
   it("should succeed and not log below minimum log level", () => {
     const logger = new Logger({ console: true }, Severity.Error)
     const message = "Test Error #4"
