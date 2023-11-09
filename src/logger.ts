@@ -7,7 +7,6 @@ export enum Severity {
 
 export type Options = {
   overrideConsole?: boolean
-  overrideDebug?: boolean
   extraData?: any
 }
 
