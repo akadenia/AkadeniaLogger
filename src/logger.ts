@@ -113,7 +113,7 @@ export class Logger implements ILogger {
   }
 
   exception(message: string, exception: Error, options?: Options) {
-    if (this.checkConsole(options)) console.error(message)
+    if (this.checkConsole(options)) console.error(`${message} : ${exception?.toString()} `)
 
     this.debug(message, { overrideConsole: false })
 
