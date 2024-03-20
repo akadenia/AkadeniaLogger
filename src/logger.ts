@@ -8,6 +8,7 @@ export enum Severity {
 export type Options = {
   overrideConsole?: boolean
   extraData?: any
+  exception?: Error
 }
 
 export type Config = {

@@ -26,40 +26,36 @@ export class SentryLoggerAdapter implements ILogger {
     })
   }
 
+  private captureMessage(message: string, severity: SentryLoggerSeverity, options?: Options) {
+    this.Sentry.withScope((scope: any) => {
+      if (options?.extraData) scope.setExtra("extra-data", JSON.stringify(options.extraData, null, 4))
+
+      if (severity === SentryLoggerSeverity.Exception && options?.exception) {
+        scope.setExtra("message", message)
+        this.Sentry.captureException(options.exception, scope)
+      } else {
+        this.Sentry.captureMessage(message, severity)
+      }
+    })
+  }
+
   debug(message: string, options?: Options | undefined): void {
-    if (options?.extraData) {
-      this.setScope(options)
-    }
-    this.Sentry.captureMessage(message, SentryLoggerSeverity.Info)
+    this.captureMessage(message, SentryLoggerSeverity.Info, options)
   }
 
   info(message: string, options?: Options | undefined): void {
-    if (options?.extraData) {
-      this.setScope(options)
-    }
-    this.Sentry.captureMessage(message, SentryLoggerSeverity.Info)
+    this.captureMessage(message, SentryLoggerSeverity.Info, options)
   }
 
   warn(message: string, options?: Options | undefined): void {
-    if (options?.extraData) {
-      this.setScope(options)
-    }
-    this.Sentry.captureMessage(message, SentryLoggerSeverity.Warning)
+    this.captureMessage(message, SentryLoggerSeverity.Warning, options)
   }
 
   error(message: string, options?: Options | undefined): void {
-    if (options?.extraData) {
-      this.setScope(options)
-    }
-    this.Sentry.captureMessage(message, SentryLoggerSeverity.Error)
+    this.captureMessage(message, SentryLoggerSeverity.Error, options)
   }
 
   exception(message: string, exception: Error, options?: Options | undefined): void {
-    if (options?.extraData) {
-      this.setScope(options)
-    }
-    this.Sentry.captureException(exception, {
-      extra: { message: message },
-    })
+    this.captureMessage(message, SentryLoggerSeverity.Exception, { ...options, exception })
   }
 }
