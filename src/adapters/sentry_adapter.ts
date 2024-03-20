@@ -32,7 +32,7 @@ export class SentryLoggerAdapter implements ILogger {
 
       if (severity === SentryLoggerSeverity.Exception && options?.exception) {
         scope.setExtra("message", message)
-        this.Sentry.captureException(options.exception, severity)
+        this.Sentry.captureException(options.exception, scope)
       } else {
         this.Sentry.captureMessage(message, severity)
       }
