@@ -20,18 +20,22 @@ export class SentryLoggerAdapter implements ILogger {
     this.minimumLogLevel = minimumLogLevel
   }
 
-  private setScope(options: Options) {
-    this.Sentry.withScope((scope: any) => {
-      scope.setExtra("extra-data", JSON.stringify(options.extraData, null, 4))
-    })
-  }
-
   private captureMessage(message: string, severity: SentryLoggerSeverity, options?: Options) {
     this.Sentry.withScope((scope: any) => {
       if (options?.extraData) scope.setExtra("extra-data", JSON.stringify(options.extraData, null, 4))
 
       if (severity === SentryLoggerSeverity.Exception && options?.exception) {
         scope.setExtra("message", message)
+        if (!(options.exception instanceof Error)) {
+          options.exception = new Error(message)
+          scope.setExtra("options", options)
+
+          this.Sentry.captureMessage(
+            "Sentry.captureException was called with a non Error instance",
+            SentryLoggerSeverity.Error,
+          )
+        }
+
         this.Sentry.captureException(options.exception, scope)
       } else {
         this.Sentry.captureMessage(message, severity)
