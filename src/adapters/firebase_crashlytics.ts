@@ -1,11 +1,11 @@
 import { ILogger, Options, PredefinedLogEvents, PredefinedLogOptions, Severity } from "../../src/logger"
 
 export enum LogSeverity {
-  Warning = "warning",
-  Error = "error",
-  Exception = "exception",
-  Info = "info",
-  Fatal = "fatal",
+  Warning = "WARNING",
+  Error = "ERROR",
+  Exception = "EXCEPTION",
+  Info = "INFO",
+  Fatal = "FATAL",
 }
 
 const replaceSpacesWithUnderscore = (s?: string): string => s?.trim().replace(/\s/g, "_") || ""

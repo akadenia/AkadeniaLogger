@@ -17,10 +17,10 @@ export type Config = {
 }
 
 export enum PredefinedLogEvents {
-  Login = "login",
-  Share = "share",
-  AppOpen = "appOpen",
-  Search = "search",
+  Login = "LOGIN",
+  Share = "SHARE",
+  AppOpen = "APP_OPEN",
+  Search = "SEARCH",
 }
 
 export type PredefinedLogOptions =
@@ -103,7 +103,7 @@ export class Logger implements ILogger {
   predefinedEvent(options: PredefinedLogOptions) {
     const message = "PREDEFINED EVENT:"
 
-    if (this.checkConsole(options)) console.log(message, options.type)
+    if (this.checkConsole(options)) console.log(message, options)
 
     this.adapters.forEach((adapter) => {
       try {
