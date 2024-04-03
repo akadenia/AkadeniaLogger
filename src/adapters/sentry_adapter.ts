@@ -20,46 +20,46 @@ export class SentryLoggerAdapter implements ILogger {
     this.minimumLogLevel = minimumLogLevel
   }
 
-  private setScope(options: Options) {
+  private captureMessage(message: string, severity: SentryLoggerSeverity, options?: Options) {
     this.Sentry.withScope((scope: any) => {
-      scope.setExtra("extra-data", JSON.stringify(options.extraData, null, 4))
+      if (options?.extraData) scope.setExtra("extra-data", JSON.stringify(options.extraData, null, 4))
+
+      if (severity === SentryLoggerSeverity.Exception && options?.exception) {
+        scope.setExtra("message", message)
+        if (!(options.exception instanceof Error)) {
+          options.exception = new Error(message)
+          scope.setExtra("options", options)
+
+          this.Sentry.captureMessage(
+            "Sentry.captureException was called with a non Error instance",
+            SentryLoggerSeverity.Error,
+          )
+        }
+
+        this.Sentry.captureException(options.exception, scope)
+      } else {
+        this.Sentry.captureMessage(message, severity)
+      }
     })
   }
 
   debug(message: string, options?: Options | undefined): void {
-    if (options?.extraData) {
-      this.setScope(options)
-    }
-    this.Sentry.captureMessage(message, SentryLoggerSeverity.Info)
+    this.captureMessage(message, SentryLoggerSeverity.Info, options)
   }
 
   info(message: string, options?: Options | undefined): void {
-    if (options?.extraData) {
-      this.setScope(options)
-    }
-    this.Sentry.captureMessage(message, SentryLoggerSeverity.Info)
+    this.captureMessage(message, SentryLoggerSeverity.Info, options)
   }
 
   warn(message: string, options?: Options | undefined): void {
-    if (options?.extraData) {
-      this.setScope(options)
-    }
-    this.Sentry.captureMessage(message, SentryLoggerSeverity.Warning)
+    this.captureMessage(message, SentryLoggerSeverity.Warning, options)
   }
 
   error(message: string, options?: Options | undefined): void {
-    if (options?.extraData) {
-      this.setScope(options)
-    }
-    this.Sentry.captureMessage(message, SentryLoggerSeverity.Error)
+    this.captureMessage(message, SentryLoggerSeverity.Error, options)
   }
 
   exception(message: string, exception: Error, options?: Options | undefined): void {
-    if (options?.extraData) {
-      this.setScope(options)
-    }
-    this.Sentry.captureException(exception, {
-      extra: { message: message },
-    })
+    this.captureMessage(message, SentryLoggerSeverity.Exception, { ...options, exception })
   }
 }

@@ -8,12 +8,26 @@ export enum Severity {
 export type Options = {
   overrideConsole?: boolean
   extraData?: any
+  exception?: Error
 }
 
 export type Config = {
   console?: boolean
   minimumLevel?: Severity
 }
+
+export enum PredefinedLogEvents {
+  Login = "LOGIN",
+  Share = "SHARE",
+  AppOpen = "APP_OPEN",
+  Search = "SEARCH",
+}
+
+export type PredefinedLogOptions =
+  | { type: PredefinedLogEvents.Share; extraData: { contentType: string; itemId: string; method: string } }
+  | { type: PredefinedLogEvents.Search; extraData: { searchTerm: string } }
+  | { type: PredefinedLogEvents.AppOpen; extraData?: Options["extraData"] }
+  | { type: PredefinedLogEvents.Login; extraData?: Options["extraData"] }
 
 export interface ILogger {
   name: string
@@ -29,6 +43,8 @@ export interface ILogger {
   error(message: string, options?: Options): void
 
   exception(message: string, exception: Error, options?: Options): void
+
+  predefinedEvent?(options: PredefinedLogOptions): void
 }
 
 export class Logger implements ILogger {
@@ -80,6 +96,18 @@ export class Logger implements ILogger {
     this.adapters.forEach((adapter) => {
       try {
         adapter.info(message, options)
+      } catch {} // absorb adapter errors for now!
+    })
+  }
+
+  predefinedEvent(options: PredefinedLogOptions) {
+    const message = "PREDEFINED EVENT:"
+
+    if (this.checkConsole(options)) console.log(message, options)
+
+    this.adapters.forEach((adapter) => {
+      try {
+        adapter?.predefinedEvent?.(options)
       } catch {} // absorb adapter errors for now!
     })
   }
