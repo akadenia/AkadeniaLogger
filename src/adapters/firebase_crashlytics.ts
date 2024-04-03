@@ -1,4 +1,4 @@
-import { ILogger, Options, PredefinedLogEvents, PredefinedLogOptions, Severity } from "../../src/logger"
+import { ILogger, Options, PredefinedLogEvents, PredefinedLogOptions, Severity } from "../logger"
 
 export enum LogSeverity {
   Warning = "WARNING",
