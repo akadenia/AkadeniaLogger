@@ -30,10 +30,7 @@ export class SentryLoggerAdapter implements ILogger {
           options.exception = new Error(message)
           scope.setExtra("options", options)
 
-          this.Sentry.captureMessage(
-            "Sentry.captureException was called with a non Error instance",
-            SentryLoggerSeverity.Error,
-          )
+          this.Sentry.captureMessage("Sentry.captureException was called with a non Error instance", SentryLoggerSeverity.Error)
         }
 
         this.Sentry.captureException(options.exception, scope)
