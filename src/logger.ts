@@ -78,7 +78,7 @@ export class Logger implements ILogger {
   debug(message: string, options?: Options) {
     if (this.minimumLogLevel > Severity.Debug) return
 
-    if (this.checkConsole(options)) console.log(message, options)
+    if (this.checkConsole(options)) console.log(message, { extraData: options?.extraData })
 
     this.adapters.forEach((adapter) => {
       try {
@@ -90,7 +90,7 @@ export class Logger implements ILogger {
   info(message: string, options?: Options) {
     if (this.minimumLogLevel > Severity.Info) return
 
-    if (this.checkConsole(options)) console.log(message, options)
+    if (this.checkConsole(options)) console.log(message, { extraData: options?.extraData })
 
     this.debug(message, { overrideConsole: false })
 
@@ -116,7 +116,7 @@ export class Logger implements ILogger {
   warn(message: string, options?: Options) {
     if (this.minimumLogLevel > Severity.Warn) return
 
-    if (this.checkConsole(options)) console.warn(message, options)
+    if (this.checkConsole(options)) console.warn(message, { extraData: options?.extraData })
 
     this.debug(message, { overrideConsole: false })
 
@@ -130,7 +130,7 @@ export class Logger implements ILogger {
   error(message: string, options?: Options) {
     if (this.minimumLogLevel > Severity.Error) return
 
-    if (this.checkConsole(options)) console.error(message, options)
+    if (this.checkConsole(options)) console.error(message, { extraData: options?.extraData })
 
     this.debug(message, { overrideConsole: false })
 
@@ -143,7 +143,9 @@ export class Logger implements ILogger {
 
   exception(message: string, exception: Error, options?: Options) {
     if (this.checkConsole(options))
-      console.error(`name: ${exception.name} message: ${exception.message} stack: ${exception.stack}`, options)
+      console.error(`name: ${exception.name} message: ${exception.message} stack: ${exception.stack}`, {
+        extraData: options?.extraData,
+      })
 
     this.debug(message, { overrideConsole: false })
 
