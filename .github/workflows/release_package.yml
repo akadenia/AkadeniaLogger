@@ -1,11 +1,17 @@
 name: Release Package
 
 on:
+  workflow_run:
+    workflows: ["Build, Lint, Test"]
+    types:
+      - completed
+    branches:
+      - main
   workflow_dispatch:
 
 env:
   CI: true
-  NPM_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
+  HUSKY: 0
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -14,18 +20,34 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     permissions:
-      contents: read
+      contents: write
       packages: write
+      pull-requests: write
 
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version-file: ".nvmrc"
-          registry-url: "https://npm.pkg.github.com"
-          # Defaults to the user or organization that owns the workflow file
-          scope: "@akadenia"
-          cache: "npm"
-      - run: npm ci
-      - run: npm publish
+          node-version-file: .nvmrc
+
+      - name: Install dependencies
+        run: npm clean-install
+
+      - uses: codfish/semantic-release-action@v3
+        id: semantic
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Release Version
+        run: echo ${{ steps.semantic.outputs.release-version }}
+
+      - name: "Create Release Assets Pull Request"
+        if: ${{ steps.semantic.outputs.new-release-published == 'true' }}
+        run: "gh pr create --base main --head release/$VERSION --title 'chore(release): merge release ${{env.VERSION}} assets'"
+        env:
+          VERSION: ${{ steps.semantic.outputs.release-version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
