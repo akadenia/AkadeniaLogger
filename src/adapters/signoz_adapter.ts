@@ -19,59 +19,69 @@ export interface SignozLog {
   severity_number?: number
   attributes?: Record<string, any>
   resources?: Record<string, any>
-  body: string
+  message: string
 }
 
 export class SignozAdapter implements ILogger {
   name: string = "signoz"
 
-  host: string
-
-  token: string
+  url: URL
 
   minimumLogLevel: Severity
 
   api: AxiosApiClient
 
-  constructor(host: string, token: string, minimumLogLevel = Severity.Debug) {
-    this.host = host
-    this.token = token
+  constructor(host: string, port: number = 8082, minimumLogLevel = Severity.Debug) {
     this.minimumLogLevel = minimumLogLevel
 
-    this.api = new AxiosApiClient(this.host, {
+    this.url = new URL(`http://${host}:${port}`)
+
+    this.api = new AxiosApiClient(this.url.toString(), {
       "Content-Type": "application/json",
     })
   }
 
-  private async captureMessage(message: string, severity: SignozSeverity, options?: Options) {
-    const payload: SignozLog = {
-      severity_text: severity,
-      body: message,
-    }
+  private async captureMessage(message: string, severity: SignozSeverity, options?: Options): Promise<boolean> {
+    const payload: SignozLog[] = [
+      {
+        trace_id: options?.signozPayload?.trace_id,
+        span_id: options?.signozPayload?.span_id,
+        trace_flags: options?.signozPayload?.trace_flags,
+        severity_text: severity,
+        severity_number: options?.signozPayload?.severity_number,
+        attributes: options?.signozPayload?.attributes,
+        resources: options?.signozPayload?.resources,
+        message: message,
+      },
+    ]
 
-    const response = await this.api.post<SignozLog>("/", payload)
+    const response = await this.api.post("", payload)
     if (!response.success) {
-      console.log(response.message || "Failed to send log to Signoz")
+      console.log(`${response.message}: ${response.data}`)
+
+      return false
     }
+
+    return true
   }
 
-  debug(message: string, options?: Options | undefined): void {
-    this.captureMessage(message, SignozSeverity.Debug, options)
+  async debug(message: string, options?: Options | undefined): Promise<boolean> {
+    return this.captureMessage(message, SignozSeverity.Debug, options)
   }
 
-  info(message: string, options?: Options | undefined): void {
-    this.captureMessage(message, SignozSeverity.Info, options)
+  async info(message: string, options?: Options | undefined): Promise<boolean> {
+    return this.captureMessage(message, SignozSeverity.Info, options)
   }
 
-  warn(message: string, options?: Options | undefined): void {
-    this.captureMessage(message, SignozSeverity.Warn, options)
+  async warn(message: string, options?: Options | undefined): Promise<boolean> {
+    return this.captureMessage(message, SignozSeverity.Warn, options)
   }
 
-  error(message: string, options?: Options | undefined): void {
-    this.captureMessage(message, SignozSeverity.Error, options)
+  async error(message: string, options?: Options | undefined): Promise<boolean> {
+    return this.captureMessage(message, SignozSeverity.Error, options)
   }
 
-  exception(message: string, exception: Error, options?: Options | undefined): void {
-    this.captureMessage(message, SignozSeverity.Fatal, { ...options, exception })
+  async exception(message: string, exception: Error, options?: Options | undefined): Promise<boolean> {
+    return this.captureMessage(message, SignozSeverity.Fatal, { ...options, exception })
   }
 }

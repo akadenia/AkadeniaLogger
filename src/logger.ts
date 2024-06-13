@@ -9,6 +9,7 @@ export type Options = {
   overrideConsole?: boolean
   extraData?: any
   exception?: Error
+  signozPayload?: any
 }
 
 export type Config = {
