@@ -47,7 +47,7 @@ jobs:
 
       - name: "Create Release Assets Pull Request"
         if: ${{ steps.semantic.outputs.new-release-published == 'true' }}
-        run: "gh pr create --base main --head release/$VERSION --title 'chore(release): merge release ${{env.VERSION}} assets'"
+        run: "gh pr create --base main --head release/$VERSION --title 'chore(release): merge release ${{env.VERSION}} assets' --body 'Merge release $VERSION assets'"
         env:
           VERSION: ${{ steps.semantic.outputs.release-version }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
