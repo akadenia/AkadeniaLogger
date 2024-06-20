@@ -100,6 +100,28 @@ describe("Logger tests with specific log message to override default logger conf
     expect(spy).toHaveBeenCalledWith(message, { extraData: undefined })
   })
 
+  it("should show log extraData in console", () => {
+    const logger = new Logger()
+    const message = "Test Error #3"
+
+    const consoleErrorSpy = jest.spyOn(console, "error")
+    const consoleLogSpy = jest.spyOn(console, "log")
+    const consoleWarnSpy = jest.spyOn(console, "warn")
+
+    logger.error(message, { overrideConsole: true, extraData: { someProperty: "some value" } })
+    logger.info(message, { overrideConsole: true, extraData: { someProperty: "some value" } })
+    logger.warn(message, { overrideConsole: true, extraData: { someProperty: "some value" } })
+
+    expect(consoleErrorSpy).toHaveBeenCalled()
+    expect(consoleErrorSpy).toHaveBeenCalledWith(message, { extraData: { someProperty: "some value" } })
+
+    expect(consoleLogSpy).toHaveBeenCalled()
+    expect(consoleLogSpy).toHaveBeenCalledWith(message, { extraData: { someProperty: "some value" } })
+
+    expect(consoleWarnSpy).toHaveBeenCalled()
+    expect(consoleWarnSpy).toHaveBeenCalledWith(message, { extraData: { someProperty: "some value" } })
+  })
+
   it("should show not show console error", () => {
     const logger = new Logger({ console: true })
     const message = "Test Error #4"
