@@ -10,7 +10,7 @@ export enum LogSeverity {
 
 const replaceSpacesWithUnderscore = (s?: string): string => s?.trim().replace(/\s/g, "_") || ""
 
-export class FireBaseCrashlyticsLoggerAdapter implements ILogger {
+export class FirebaseAdapter implements ILogger {
   name: string = "firebase_crashlytics"
 
   crashlytics: any
