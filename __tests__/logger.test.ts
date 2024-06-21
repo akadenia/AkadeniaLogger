@@ -48,7 +48,7 @@ describe("Logger tests where it's supposed to show appropriate error", () => {
     logger.info(message)
 
     expect(spy).toHaveBeenCalled()
-    expect(spy).toHaveBeenCalledWith(message)
+    expect(spy).toHaveBeenCalledWith(message, { extraData: undefined })
   })
 
   it("should show console warn with warn", () => {
@@ -59,7 +59,7 @@ describe("Logger tests where it's supposed to show appropriate error", () => {
     logger.warn(message)
 
     expect(spy).toHaveBeenCalled()
-    expect(spy).toHaveBeenCalledWith(message)
+    expect(spy).toHaveBeenCalledWith(message, { extraData: undefined })
   })
 
   it("should show console error with error", () => {
@@ -71,7 +71,7 @@ describe("Logger tests where it's supposed to show appropriate error", () => {
     logger.error(message)
 
     expect(spy).toHaveBeenCalled()
-    expect(spy).toHaveBeenCalledWith(message)
+    expect(spy).toHaveBeenCalledWith(message, { extraData: undefined })
   })
 
   it("should show console error with error", () => {
@@ -83,7 +83,7 @@ describe("Logger tests where it's supposed to show appropriate error", () => {
     logger.error(message)
 
     expect(spy).toHaveBeenCalled()
-    expect(spy).toHaveBeenCalledWith(message)
+    expect(spy).toHaveBeenCalledWith(message, { extraData: undefined })
   })
 })
 
@@ -97,7 +97,29 @@ describe("Logger tests with specific log message to override default logger conf
     logger.error(message, { overrideConsole: true })
 
     expect(spy).toHaveBeenCalled()
-    expect(spy).toHaveBeenCalledWith(message)
+    expect(spy).toHaveBeenCalledWith(message, { extraData: undefined })
+  })
+
+  it("should show log extraData in console", () => {
+    const logger = new Logger()
+    const message = "Test Error #3"
+
+    const consoleErrorSpy = jest.spyOn(console, "error")
+    const consoleLogSpy = jest.spyOn(console, "log")
+    const consoleWarnSpy = jest.spyOn(console, "warn")
+
+    logger.error(message, { overrideConsole: true, extraData: { someProperty: "some value" } })
+    logger.info(message, { overrideConsole: true, extraData: { someProperty: "some value" } })
+    logger.warn(message, { overrideConsole: true, extraData: { someProperty: "some value" } })
+
+    expect(consoleErrorSpy).toHaveBeenCalled()
+    expect(consoleErrorSpy).toHaveBeenCalledWith(message, { extraData: { someProperty: "some value" } })
+
+    expect(consoleLogSpy).toHaveBeenCalled()
+    expect(consoleLogSpy).toHaveBeenCalledWith(message, { extraData: { someProperty: "some value" } })
+
+    expect(consoleWarnSpy).toHaveBeenCalled()
+    expect(consoleWarnSpy).toHaveBeenCalledWith(message, { extraData: { someProperty: "some value" } })
   })
 
   it("should show not show console error", () => {
