@@ -1,6 +1,5 @@
 # [1.2.0](https://github.com/akadenia/AkadeniaLogger/compare/1.1.0...1.2.0) (2024-06-21)
 
-
 ### Features
 
 * **core:** include extraData when logging to console ([#7](https://github.com/akadenia/AkadeniaLogger/issues/7)) ([41c4fb3](https://github.com/akadenia/AkadeniaLogger/commit/41c4fb3f0253dc492e8daa0092bccc79f3372686))
@@ -11,13 +10,13 @@
 
 ### Features
 
-* **signoz:**  implement signoz adapter by @guy-shahine in ([#9](https://github.com/akadenia/AkadeniaLogger/issues/9)) ([1b850c3](https://github.com/akadenia/AkadeniaLogger/commit/1b850c3fc70a25961347c4edb08616d4b6ef0141))
+* **signoz:** implement signoz adapter by @guy-shahine in ([#9](https://github.com/akadenia/AkadeniaLogger/issues/9)) ([1b850c3](https://github.com/akadenia/AkadeniaLogger/commit/1b850c3fc70a25961347c4edb08616d4b6ef0141))
 
 # [1.0.1](https://github.com/akadenia/AkadeniaLogger/compare/1.0.0...1.0.1) (2024-04-03)
 
 ### Features
 
-* **semantic-release:**implement semantic release by @tsatsujnr139 in ([#8](https://github.com/akadenia/AkadeniaLogger/issues/8))
+* **semantic-release:** implement semantic release by @tsatsujnr139 in ([#8](https://github.com/akadenia/AkadeniaLogger/issues/8))
 
 ### Fixes
 
