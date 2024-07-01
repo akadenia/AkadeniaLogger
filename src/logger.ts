@@ -49,7 +49,7 @@ export interface ILogger {
 }
 
 function logToConsole(logLevel: "warn" | "log" | "error", message: string, options?: Options) {
-  if (options?.extraData !== undefined) {
+  if (options?.extraData) {
     console[logLevel](message, { extraData: options.extraData })
   } else {
     console[logLevel](message)
