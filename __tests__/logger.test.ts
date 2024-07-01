@@ -48,7 +48,7 @@ describe("Logger tests where it's supposed to show appropriate error", () => {
     logger.info(message)
 
     expect(spy).toHaveBeenCalled()
-    expect(spy).toHaveBeenCalledWith(message, { extraData: undefined })
+    expect(spy).toHaveBeenCalledWith(message)
   })
 
   it("should show console warn with warn", () => {
@@ -59,7 +59,7 @@ describe("Logger tests where it's supposed to show appropriate error", () => {
     logger.warn(message)
 
     expect(spy).toHaveBeenCalled()
-    expect(spy).toHaveBeenCalledWith(message, { extraData: undefined })
+    expect(spy).toHaveBeenCalledWith(message)
   })
 
   it("should show console error with error", () => {
@@ -71,7 +71,7 @@ describe("Logger tests where it's supposed to show appropriate error", () => {
     logger.error(message)
 
     expect(spy).toHaveBeenCalled()
-    expect(spy).toHaveBeenCalledWith(message, { extraData: undefined })
+    expect(spy).toHaveBeenCalledWith(message)
   })
 
   it("should show console error with error", () => {
@@ -83,7 +83,7 @@ describe("Logger tests where it's supposed to show appropriate error", () => {
     logger.error(message)
 
     expect(spy).toHaveBeenCalled()
-    expect(spy).toHaveBeenCalledWith(message, { extraData: undefined })
+    expect(spy).toHaveBeenCalledWith(message)
   })
 })
 
@@ -97,7 +97,7 @@ describe("Logger tests with specific log message to override default logger conf
     logger.error(message, { overrideConsole: true })
 
     expect(spy).toHaveBeenCalled()
-    expect(spy).toHaveBeenCalledWith(message, { extraData: undefined })
+    expect(spy).toHaveBeenCalledWith(message)
   })
 
   it("should show log extraData in console", () => {

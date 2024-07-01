@@ -48,6 +48,14 @@ export interface ILogger {
   predefinedEvent?(options: PredefinedLogOptions): void
 }
 
+function logToConsole(logLevel: "warn" | "log" | "error", message: string, options?: Options) {
+  if (options?.extraData !== undefined) {
+    console[logLevel](message, { extraData: options.extraData })
+  } else {
+    console[logLevel](message)
+  }
+}
+
 export class Logger implements ILogger {
   name: string = "root"
   defaultConfig?: Config
@@ -78,7 +86,7 @@ export class Logger implements ILogger {
   debug(message: string, options?: Options) {
     if (this.minimumLogLevel > Severity.Debug) return
 
-    if (this.checkConsole(options)) console.log(message, { extraData: options?.extraData })
+    if (this.checkConsole(options)) logToConsole("log", message, options)
 
     this.adapters.forEach((adapter) => {
       try {
@@ -90,7 +98,7 @@ export class Logger implements ILogger {
   info(message: string, options?: Options) {
     if (this.minimumLogLevel > Severity.Info) return
 
-    if (this.checkConsole(options)) console.log(message, { extraData: options?.extraData })
+    if (this.checkConsole(options)) logToConsole("log", message, options)
 
     this.debug(message, { overrideConsole: false })
 
@@ -104,7 +112,7 @@ export class Logger implements ILogger {
   predefinedEvent(options: PredefinedLogOptions) {
     const message = "PREDEFINED EVENT:"
 
-    if (this.checkConsole(options)) console.log(message, options)
+    if (this.checkConsole(options)) logToConsole("log", message, options)
 
     this.adapters.forEach((adapter) => {
       try {
@@ -116,7 +124,7 @@ export class Logger implements ILogger {
   warn(message: string, options?: Options) {
     if (this.minimumLogLevel > Severity.Warn) return
 
-    if (this.checkConsole(options)) console.warn(message, { extraData: options?.extraData })
+    if (this.checkConsole(options)) logToConsole("warn", message, options)
 
     this.debug(message, { overrideConsole: false })
 
@@ -130,7 +138,7 @@ export class Logger implements ILogger {
   error(message: string, options?: Options) {
     if (this.minimumLogLevel > Severity.Error) return
 
-    if (this.checkConsole(options)) console.error(message, { extraData: options?.extraData })
+    if (this.checkConsole(options)) logToConsole("error", message, options)
 
     this.debug(message, { overrideConsole: false })
 
@@ -143,9 +151,7 @@ export class Logger implements ILogger {
 
   exception(message: string, exception: Error, options?: Options) {
     if (this.checkConsole(options))
-      console.error(`name: ${exception.name} message: ${exception.message} stack: ${exception.stack}`, {
-        extraData: options?.extraData,
-      })
+      logToConsole("error", message, { ...options, extraData: { ...options?.extraData, exception: exception } })
 
     this.debug(message, { overrideConsole: false })
 
