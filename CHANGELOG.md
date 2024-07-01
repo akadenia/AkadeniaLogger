@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/akadenia/AkadeniaLogger/compare/1.2.0...1.2.1) (2024-07-01)
+
+
+### Bug Fixes
+
+* **console-log:** exclude extraData from console log if extraData is not defined ([#13](https://github.com/akadenia/AkadeniaLogger/issues/13)) ([494281a](https://github.com/akadenia/AkadeniaLogger/commit/494281a1dad3ac359b18e78f1d1c29b494c4d4a4))
+
 # [1.2.0](https://github.com/akadenia/AkadeniaLogger/compare/1.1.0...1.2.0) (2024-06-21)
 
 ### Features
