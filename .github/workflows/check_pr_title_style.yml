@@ -11,8 +11,11 @@ jobs:
   check-pr-title-style:
     name: Check pr title style
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+      statuses: write
     steps:
-      - uses: amannn/action-semantic-pull-request@v4
+      - uses: amannn/action-semantic-pull-request@v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -20,9 +23,9 @@ jobs:
           # Default: https://github.com/commitizen/conventional-commit-types
           requireScope: true
           # Configure which scopes are disallowed in PR titles. For instance by setting
-          # the value below, `chore(release): ...` and `ci(e2e,release): ...` will be rejected.
+          # the value below, `chore(core): ...` and `ci(e2e,core): ...` will be rejected.
           disallowScopes: |
-            release
+            core
           # Configure additional validation for the subject based on a regex.
           # This example ensures the subject doesn't start with an uppercase character.
           subjectPattern: ^(?![A-Z])[A-Za-z0-9\s!@#$%^&*()-_+=|{}\[\]:;"'<>,.?/~`]+$
