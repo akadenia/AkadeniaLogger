@@ -33,7 +33,7 @@ export class FirebaseAdapter implements ILogger {
     switch (severity) {
       case LogSeverity.Exception:
       case LogSeverity.Error: {
-        let error = severity === LogSeverity.Exception && options?.exception ? options.exception : new Error(message)
+        const error = severity === LogSeverity.Exception && options?.exception ? options.exception : new Error(message)
         this.crashlytics().setAttributes(options || {})
         this.crashlytics().recordError(error, message)
         break
