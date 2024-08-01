@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/akadenia/AkadeniaLogger/compare/1.2.1...1.3.0) (2024-07-30)
+
+
+### Features
+
+* **node:** bump to node 20 ([#15](https://github.com/akadenia/AkadeniaLogger/issues/15)) ([e7e2eda](https://github.com/akadenia/AkadeniaLogger/commit/e7e2eda52d4529f921fa726ab5b5ffad74bd7737))
+
 ## [1.2.1](https://github.com/akadenia/AkadeniaLogger/compare/1.2.0...1.2.1) (2024-07-01)
 
 
