@@ -94,7 +94,7 @@ describe("Logger tests with specific log message to override default logger conf
 
     const spy = jest.spyOn(console, "error")
 
-    logger.error(message, { overrideConsole: true })
+    logger.error(message, { forceConsole: true })
 
     expect(spy).toHaveBeenCalled()
     expect(spy).toHaveBeenCalledWith(message)
@@ -108,9 +108,9 @@ describe("Logger tests with specific log message to override default logger conf
     const consoleLogSpy = jest.spyOn(console, "log")
     const consoleWarnSpy = jest.spyOn(console, "warn")
 
-    logger.error(message, { overrideConsole: true, extraData: { someProperty: "some value" } })
-    logger.info(message, { overrideConsole: true, extraData: { someProperty: "some value" } })
-    logger.warn(message, { overrideConsole: true, extraData: { someProperty: "some value" } })
+    logger.error(message, { forceConsole: true, extraData: { someProperty: "some value" } })
+    logger.info(message, { forceConsole: true, extraData: { someProperty: "some value" } })
+    logger.warn(message, { forceConsole: true, extraData: { someProperty: "some value" } })
 
     expect(consoleErrorSpy).toHaveBeenCalled()
     expect(consoleErrorSpy).toHaveBeenCalledWith(message, { extraData: { someProperty: "some value" } })
@@ -128,7 +128,7 @@ describe("Logger tests with specific log message to override default logger conf
 
     const spy = jest.spyOn(console, "error")
 
-    logger.error(message, { overrideConsole: false })
+    logger.error(message, { forceConsole: false })
 
     expect(spy).not.toHaveBeenCalled()
   })

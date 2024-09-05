@@ -65,6 +65,10 @@ export class SignozAdapter implements ILogger {
     return true
   }
 
+  async trace(message: string, options?: Options | undefined): Promise<boolean> {
+    return this.captureMessage(message, SignozSeverity.Debug, options)
+  }
+
   async debug(message: string, options?: Options | undefined): Promise<boolean> {
     return this.captureMessage(message, SignozSeverity.Debug, options)
   }
