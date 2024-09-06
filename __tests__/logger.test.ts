@@ -43,7 +43,7 @@ describe("Logger tests where it's supposed to show appropriate error", () => {
     const logger = new Logger({ console: true })
     const message = "Test Info"
 
-    const spy = jest.spyOn(console, "log")
+    const spy = jest.spyOn(console, "info")
 
     logger.info(message)
 
@@ -105,21 +105,20 @@ describe("Logger tests with specific log message to override default logger conf
     const message = "Test Error #3"
 
     const consoleErrorSpy = jest.spyOn(console, "error")
-    const consoleLogSpy = jest.spyOn(console, "log")
+    const consoleInfoSpy = jest.spyOn(console, "info")
     const consoleWarnSpy = jest.spyOn(console, "warn")
 
-    logger.error(message, { forceConsole: true, extraData: { someProperty: "some value" } })
-    logger.info(message, { forceConsole: true, extraData: { someProperty: "some value" } })
-    logger.warn(message, { forceConsole: true, extraData: { someProperty: "some value" } })
-
+    logger.error(message, { forceConsole: true, extraData: { errorProperty: "some error" } })
     expect(consoleErrorSpy).toHaveBeenCalled()
-    expect(consoleErrorSpy).toHaveBeenCalledWith(message, { extraData: { someProperty: "some value" } })
+    expect(consoleErrorSpy).toHaveBeenCalledWith(message, { extraData: { errorProperty: "some error" } })
 
-    expect(consoleLogSpy).toHaveBeenCalled()
-    expect(consoleLogSpy).toHaveBeenCalledWith(message, { extraData: { someProperty: "some value" } })
+    logger.info(message, { forceConsole: true, extraData: { infoProperty: "some info" } })
+    expect(consoleInfoSpy).toHaveBeenCalled()
+    expect(consoleInfoSpy).toHaveBeenCalledWith(message, { extraData: { infoProperty: "some info" } })
 
+    logger.warn(message, { forceConsole: true, extraData: { warnProperty: "some warn" } })
     expect(consoleWarnSpy).toHaveBeenCalled()
-    expect(consoleWarnSpy).toHaveBeenCalledWith(message, { extraData: { someProperty: "some value" } })
+    expect(consoleWarnSpy).toHaveBeenCalledWith(message, { extraData: { warnProperty: "some warn" } })
   })
 
   it("should show not show console error", () => {
