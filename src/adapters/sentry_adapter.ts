@@ -1,17 +1,21 @@
 import { Severity, ILogger, Options } from "../logger"
+import { Client, Scope, SeverityLevel } from "@sentry/types"
 
 export enum SentrySeverity {
   Warning = "warning",
   Error = "error",
-  Exception = "exception",
   Info = "info",
   Fatal = "fatal",
+}
+
+interface SentryClient extends Client {
+  withScope(callback: (scope: Scope) => void): void
 }
 
 export class SentryAdapter implements ILogger {
   name: string = "sentry"
 
-  Sentry: any
+  Sentry: SentryClient
 
   minimumLogLevel: Severity
 
@@ -20,11 +24,11 @@ export class SentryAdapter implements ILogger {
     this.minimumLogLevel = minimumLogLevel
   }
 
-  private captureMessage(message: string, severity: SentrySeverity, options?: Options) {
+  private captureMessage(message: string, severity: SeverityLevel, options?: Options) {
     this.Sentry.withScope((scope: any) => {
       if (options?.extraData) scope.setExtra("extra-data", JSON.stringify(options.extraData, null, 4))
 
-      if (severity === SentrySeverity.Exception && options?.exception) {
+      if (severity === SentrySeverity.Fatal && options?.exception) {
         scope.setExtra("message", message)
         if (!(options.exception instanceof Error)) {
           options.exception = new Error(message)
@@ -38,6 +42,10 @@ export class SentryAdapter implements ILogger {
         this.Sentry.captureMessage(message, severity)
       }
     })
+  }
+
+  trace(message: string, options?: Options | undefined): void {
+    this.captureMessage(message, SentrySeverity.Info, options)
   }
 
   debug(message: string, options?: Options | undefined): void {
@@ -57,6 +65,10 @@ export class SentryAdapter implements ILogger {
   }
 
   exception(message: string, exception: Error, options?: Options | undefined): void {
-    this.captureMessage(message, SentrySeverity.Exception, { ...options, exception })
+    this.captureMessage(message, SentrySeverity.Fatal, { ...options, exception })
+  }
+
+  flush(duration: number): void {
+    this.Sentry.flush(duration)
   }
 }
