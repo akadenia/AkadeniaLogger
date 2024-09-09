@@ -65,6 +65,10 @@ export class FirebaseAdapter implements ILogger {
     }
   }
 
+  trace(message: string, options?: Options): void {
+    this.captureMessage(message, LogSeverity.Info, options)
+  }
+
   debug(message: string, options?: Options): void {
     this.captureMessage(message, LogSeverity.Info, options)
   }

@@ -6,10 +6,11 @@ export enum Severity {
 }
 
 export type Options = {
-  overrideConsole?: boolean
+  forceConsole?: boolean
   extraData?: any
   exception?: Error
   signozPayload?: any
+  azureContext?: any
 }
 
 export type Config = {
@@ -35,6 +36,8 @@ export interface ILogger {
 
   minimumLogLevel: Severity
 
+  trace(message: string, options?: Options): void
+
   debug(message: string, options?: Options): void
 
   info(message: string, options?: Options): void
@@ -46,13 +49,17 @@ export interface ILogger {
   exception(message: string, exception: Error, options?: Options): void
 
   predefinedEvent?(options: PredefinedLogOptions): void
+
+  flush?(duration: number): void
 }
 
-function logToConsole(logLevel: "warn" | "log" | "error", message: string, options?: Options) {
+function logToConsole(logLevel: "warn" | "info" | "log" | "error" | "trace" | "debug", message: string, options?: Options) {
+  const consoleLogger = options?.azureContext || console
+
   if (options?.extraData) {
-    console[logLevel](message, { extraData: options.extraData })
+    consoleLogger[logLevel](message, { extraData: options.extraData })
   } else {
-    console[logLevel](message)
+    consoleLogger[logLevel](message)
   }
 }
 
@@ -70,7 +77,7 @@ export class Logger implements ILogger {
   }
 
   private checkConsole(options?: Options): boolean {
-    if (options && options.overrideConsole !== undefined) return !!options?.overrideConsole
+    if (options && options.forceConsole !== undefined) return !!options?.forceConsole
 
     return !!this.defaultConfig?.console
   }
@@ -81,6 +88,18 @@ export class Logger implements ILogger {
 
   setMinimumLogLevel(minimumLogLevel: Severity): void {
     this.minimumLogLevel = minimumLogLevel
+  }
+
+  trace(message: string, options?: Options) {
+    if (this.minimumLogLevel > Severity.Debug) return
+
+    if (this.checkConsole(options)) logToConsole("trace", message, options)
+
+    this.adapters.forEach((adapter) => {
+      try {
+        adapter.trace(message, options)
+      } catch {} // absorb adapter errors for now!
+    })
   }
 
   debug(message: string, options?: Options) {
@@ -98,9 +117,9 @@ export class Logger implements ILogger {
   info(message: string, options?: Options) {
     if (this.minimumLogLevel > Severity.Info) return
 
-    if (this.checkConsole(options)) logToConsole("log", message, options)
+    if (this.checkConsole(options)) logToConsole("info", message, options)
 
-    this.debug(message, { overrideConsole: false })
+    this.debug(message, { forceConsole: false })
 
     this.adapters.forEach((adapter) => {
       try {
@@ -126,7 +145,7 @@ export class Logger implements ILogger {
 
     if (this.checkConsole(options)) logToConsole("warn", message, options)
 
-    this.debug(message, { overrideConsole: false })
+    this.debug(message, { forceConsole: false })
 
     this.adapters.forEach((adapter) => {
       try {
@@ -140,7 +159,7 @@ export class Logger implements ILogger {
 
     if (this.checkConsole(options)) logToConsole("error", message, options)
 
-    this.debug(message, { overrideConsole: false })
+    this.debug(message, { forceConsole: false })
 
     this.adapters.forEach((adapter) => {
       try {
@@ -153,11 +172,19 @@ export class Logger implements ILogger {
     if (this.checkConsole(options))
       logToConsole("error", message, { ...options, extraData: { ...options?.extraData, exception: exception } })
 
-    this.debug(message, { overrideConsole: false })
+    this.debug(message, { forceConsole: false })
 
     this.adapters.forEach((adapter) => {
       try {
         adapter.exception(message, exception, options)
+      } catch {} // absorb adapter errors for now!
+    })
+  }
+
+  flush(duration: number) {
+    this.adapters.forEach((adapter) => {
+      try {
+        adapter.flush?.(duration)
       } catch {} // absorb adapter errors for now!
     })
   }
