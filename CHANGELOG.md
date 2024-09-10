@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/akadenia/AkadeniaLogger/compare/1.3.0...1.4.0) (2024-09-10)
+
+
+### Features
+
+* **sentry,azure-functions:** add support for sentry types and trace ([#17](https://github.com/akadenia/AkadeniaLogger/issues/17)) ([f55a8b4](https://github.com/akadenia/AkadeniaLogger/commit/f55a8b49f1c022da4fd67f4447127bbf4d93dcf4))
+
 # [1.3.0](https://github.com/akadenia/AkadeniaLogger/compare/1.2.1...1.3.0) (2024-07-30)
 
 
