@@ -44,7 +44,7 @@ jobs:
           # subject. The `headerPattern` should contain a regex where the capturing groups in parentheses
           # correspond to the parts listed in `headerPatternCorrespondence`.
           # See: https://github.com/conventional-changelog/conventional-changelog/tree/master/packages/conventional-commits-parser#headerpattern
-          headerPattern: '^(\w*)(?:\(([\w$.,\-*/ ]*)\))?(!)?: (.*)$'
+          headerPattern: '^(\w*)(?:\(([\w$.,\-*/ ]*)\))?: (.*)$'
           headerPatternCorrespondence: type, scope, subject
           # For work-in-progress PRs you can typically use draft pull requests
           # from GitHub. However, private repositories on the free plan don't have
