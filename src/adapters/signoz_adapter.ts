@@ -36,8 +36,11 @@ export class SignozAdapter implements ILogger {
 
     this.url = new URL(`http://${host}:${port}`)
 
-    this.api = new AxiosApiClient(this.url.toString(), {
-      "Content-Type": "application/json",
+    this.api = new AxiosApiClient({
+      baseUrl: this.url.toString(),
+      headers: {
+        "Content-Type": "application/json",
+      },
     })
   }
 
