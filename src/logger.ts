@@ -114,9 +114,9 @@ export class Logger implements ILogger {
   }
 
   info(message: string, options?: Options) {
-    this.adapters.forEach((adapter) => {
-      if (this.checkConsole(Severity.Info, options)) logToConsole("info", message, options)
+    if (this.checkConsole(Severity.Info, options)) logToConsole("info", message, options)
 
+    this.adapters.forEach((adapter) => {
       try {
         adapter.info(message, options)
       } catch {} // absorb adapter errors for now!
