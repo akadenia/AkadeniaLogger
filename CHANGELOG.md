@@ -1,3 +1,10 @@
+## [1.5.1](https://github.com/akadenia/AkadeniaLogger/compare/1.5.0...1.5.1) (2024-09-11)
+
+
+### Bug Fixes
+
+* **npm:** upgrade akadenia api to fix vulnerable dependencies ([#20](https://github.com/akadenia/AkadeniaLogger/issues/20)) ([7dec9a4](https://github.com/akadenia/AkadeniaLogger/commit/7dec9a4ca5919448922e2f1157cd3432b5b5d63f))
+
 # [1.5.0](https://github.com/akadenia/AkadeniaLogger/compare/1.4.0...1.5.0) (2024-09-11)
 
 
