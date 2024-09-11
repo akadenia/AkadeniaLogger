@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/akadenia/AkadeniaLogger/compare/1.4.0...1.5.0) (2024-09-11)
+
+
+### Features
+
+* **minimun-log-level:** ability to have different minimum log level per adapter ([#21](https://github.com/akadenia/AkadeniaLogger/issues/21)) ([1648cf7](https://github.com/akadenia/AkadeniaLogger/commit/1648cf7b730bf5d4881edaf220e446c8987014c3))
+
 # [1.4.0](https://github.com/akadenia/AkadeniaLogger/compare/1.3.0...1.4.0) (2024-09-10)
 
 
