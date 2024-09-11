@@ -41,7 +41,7 @@ export class SignozAdapter implements ILogger {
     })
   }
 
-  private async captureMessage(message: string, severity: SignozSeverity, options?: Options): Promise<boolean> {
+  private async captureMessage(message: string, severity: SignozSeverity, options?: Options) {
     const payload: SignozLog[] = [
       {
         trace_id: options?.signozPayload?.trace_id,
@@ -65,27 +65,37 @@ export class SignozAdapter implements ILogger {
     return true
   }
 
-  async trace(message: string, options?: Options | undefined): Promise<boolean> {
-    return this.captureMessage(message, SignozSeverity.Debug, options)
+  async trace(message: string, options?: Options | undefined) {
+    if (this.minimumLogLevel > Severity.Trace) return
+
+    this.captureMessage(message, SignozSeverity.Trace, options)
   }
 
-  async debug(message: string, options?: Options | undefined): Promise<boolean> {
-    return this.captureMessage(message, SignozSeverity.Debug, options)
+  async debug(message: string, options?: Options | undefined) {
+    if (this.minimumLogLevel > Severity.Debug) return
+
+    this.captureMessage(message, SignozSeverity.Debug, options)
   }
 
-  async info(message: string, options?: Options | undefined): Promise<boolean> {
-    return this.captureMessage(message, SignozSeverity.Info, options)
+  async info(message: string, options?: Options | undefined) {
+    if (this.minimumLogLevel > Severity.Info) return
+
+    this.captureMessage(message, SignozSeverity.Info, options)
   }
 
-  async warn(message: string, options?: Options | undefined): Promise<boolean> {
-    return this.captureMessage(message, SignozSeverity.Warn, options)
+  async warn(message: string, options?: Options | undefined) {
+    if (this.minimumLogLevel > Severity.Warn) return
+
+    this.captureMessage(message, SignozSeverity.Warn, options)
   }
 
-  async error(message: string, options?: Options | undefined): Promise<boolean> {
-    return this.captureMessage(message, SignozSeverity.Error, options)
+  async error(message: string, options?: Options | undefined) {
+    if (this.minimumLogLevel > Severity.Error) return
+
+    this.captureMessage(message, SignozSeverity.Error, options)
   }
 
-  async exception(message: string, exception: Error, options?: Options | undefined): Promise<boolean> {
-    return this.captureMessage(message, SignozSeverity.Fatal, { ...options, exception })
+  async exception(message: string, exception: Error, options?: Options | undefined) {
+    this.captureMessage(message, SignozSeverity.Fatal, { ...options, exception })
   }
 }

@@ -1,5 +1,6 @@
 export enum Severity {
-  Debug = 1,
+  Trace = 1,
+  Debug,
   Info,
   Warn,
   Error,
@@ -71,12 +72,14 @@ export class Logger implements ILogger {
   minimumLogLevel: Severity
   adapters: ILogger[] = []
 
-  constructor(defaultConfig?: Config, minimumLogLevel = Severity.Debug) {
+  constructor(defaultConfig?: Config, consoleMinimumLogLevel = Severity.Debug) {
     this.defaultConfig = defaultConfig
-    this.minimumLogLevel = minimumLogLevel
+    this.minimumLogLevel = consoleMinimumLogLevel
   }
 
-  private checkConsole(options?: Options): boolean {
+  private checkConsole(severity: Severity, options?: Options): boolean {
+    if (this.minimumLogLevel > severity) return false
+
     if (options && options.forceConsole !== undefined) return !!options?.forceConsole
 
     return !!this.defaultConfig?.console
@@ -86,14 +89,12 @@ export class Logger implements ILogger {
     this.adapters.push(logger)
   }
 
-  setMinimumLogLevel(minimumLogLevel: Severity): void {
-    this.minimumLogLevel = minimumLogLevel
+  setConsoleMinimumLogLevel(consoleMinimumLogLevel: Severity): void {
+    this.minimumLogLevel = consoleMinimumLogLevel
   }
 
   trace(message: string, options?: Options) {
-    if (this.minimumLogLevel > Severity.Debug) return
-
-    if (this.checkConsole(options)) logToConsole("trace", message, options)
+    if (this.checkConsole(Severity.Trace, options)) logToConsole("trace", message, options)
 
     this.adapters.forEach((adapter) => {
       try {
@@ -103,9 +104,7 @@ export class Logger implements ILogger {
   }
 
   debug(message: string, options?: Options) {
-    if (this.minimumLogLevel > Severity.Debug) return
-
-    if (this.checkConsole(options)) logToConsole("log", message, options)
+    if (this.checkConsole(Severity.Debug, options)) logToConsole("debug", message, options)
 
     this.adapters.forEach((adapter) => {
       try {
@@ -115,13 +114,9 @@ export class Logger implements ILogger {
   }
 
   info(message: string, options?: Options) {
-    if (this.minimumLogLevel > Severity.Info) return
-
-    if (this.checkConsole(options)) logToConsole("info", message, options)
-
-    this.debug(message, { forceConsole: false })
-
     this.adapters.forEach((adapter) => {
+      if (this.checkConsole(Severity.Info, options)) logToConsole("info", message, options)
+
       try {
         adapter.info(message, options)
       } catch {} // absorb adapter errors for now!
@@ -131,9 +126,9 @@ export class Logger implements ILogger {
   predefinedEvent(options: PredefinedLogOptions) {
     const message = "PREDEFINED EVENT:"
 
-    if (this.checkConsole(options)) logToConsole("log", message, options)
-
     this.adapters.forEach((adapter) => {
+      if (this.checkConsole(Severity.Debug, options)) logToConsole("log", message, options)
+
       try {
         adapter?.predefinedEvent?.(options)
       } catch {} // absorb adapter errors for now!
@@ -141,11 +136,7 @@ export class Logger implements ILogger {
   }
 
   warn(message: string, options?: Options) {
-    if (this.minimumLogLevel > Severity.Warn) return
-
-    if (this.checkConsole(options)) logToConsole("warn", message, options)
-
-    this.debug(message, { forceConsole: false })
+    if (this.checkConsole(Severity.Warn, options)) logToConsole("warn", message, options)
 
     this.adapters.forEach((adapter) => {
       try {
@@ -155,11 +146,7 @@ export class Logger implements ILogger {
   }
 
   error(message: string, options?: Options) {
-    if (this.minimumLogLevel > Severity.Error) return
-
-    if (this.checkConsole(options)) logToConsole("error", message, options)
-
-    this.debug(message, { forceConsole: false })
+    if (this.checkConsole(Severity.Error, options)) logToConsole("error", message, options)
 
     this.adapters.forEach((adapter) => {
       try {
@@ -169,11 +156,8 @@ export class Logger implements ILogger {
   }
 
   exception(message: string, exception: Error, options?: Options) {
-    if (this.checkConsole(options))
+    if (this.checkConsole(Severity.Error, options))
       logToConsole("error", message, { ...options, extraData: { ...options?.extraData, exception: exception } })
-
-    this.debug(message, { forceConsole: false })
-
     this.adapters.forEach((adapter) => {
       try {
         adapter.exception(message, exception, options)

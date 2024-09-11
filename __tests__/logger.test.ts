@@ -121,7 +121,7 @@ describe("Logger tests with specific log message to override default logger conf
     expect(consoleWarnSpy).toHaveBeenCalledWith(message, { extraData: { warnProperty: "some warn" } })
   })
 
-  it("should show not show console error", () => {
+  it("should not show console error", () => {
     const logger = new Logger({ console: true })
     const message = "Test Error #4"
 
@@ -145,7 +145,7 @@ describe("Logger namespace test", () => {
     expect(spy).not.toHaveBeenCalled()
   })
 
-  it("should succeed and log when equal minimum log level", () => {
+  it("should log when equal minimum log level", () => {
     const logger = new Logger({ console: true }, Severity.Error)
     const message = "Test Error #5"
 
@@ -156,7 +156,7 @@ describe("Logger namespace test", () => {
     expect(spy).toHaveBeenCalled()
   })
 
-  it("should succeed and log when above minimum log level", () => {
+  it("should log when above minimum log level", () => {
     const logger = new Logger({ console: true }, Severity.Warn)
     const message = "Test Error #5"
 
