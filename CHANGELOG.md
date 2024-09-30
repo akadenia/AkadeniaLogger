@@ -1,3 +1,10 @@
+## [1.5.2](https://github.com/akadenia/AkadeniaLogger/compare/1.5.1...1.5.2) (2024-09-12)
+
+
+### Bug Fixes
+
+* **sentry-types:** make @sentry/types a dependency ([599138c](https://github.com/akadenia/AkadeniaLogger/commit/599138cf79d5ecc71b895c5757b71dc281e2e454))
+
 ## [1.5.1](https://github.com/akadenia/AkadeniaLogger/compare/1.5.0...1.5.1) (2024-09-11)
 
 
