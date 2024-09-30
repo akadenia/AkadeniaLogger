@@ -55,23 +55,21 @@ export interface ILogger {
 }
 
 function logToConsole(logLevel: "warn" | "info" | "log" | "error" | "trace" | "debug", message: string, options?: Options) {
-  let currentLogLevel: string = logLevel
-  let currentConsoleLogger = console
-
   // map log level to azure supported levels: error, warn, verbose, info
-  // override console
   if (options?.azureContext) {
+    let azureContextLogLevel: string = logLevel
+
     if (logLevel === "trace" || logLevel === "debug" || logLevel === "log") {
-      currentLogLevel = "verbose"
+      azureContextLogLevel = "verbose"
     }
 
-    currentConsoleLogger = options?.azureContext
-  }
-
-  if (options?.extraData) {
-    currentConsoleLogger[logLevel](message, { extraData: options.extraData })
+    options?.azureContext[azureContextLogLevel](message)
   } else {
-    currentConsoleLogger[logLevel](message)
+    if (options?.extraData) {
+      console[logLevel](message, { extraData: options.extraData })
+    } else {
+      console[logLevel](message)
+    }
   }
 }
 
