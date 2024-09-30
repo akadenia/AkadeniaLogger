@@ -9,23 +9,24 @@ import { Config, Logger, SentryLoggerAdapter, Severity } from "@akadenia/logger"
 import { APP_ENV, SENTRY_DSN } from "react-native-dotenv"
 
 class Log extends Logger {
-  constructor(defaultConfig?: Config, minimumLogLevel?: Severity) {
-    super(defaultConfig, minimumLogLevel)
+  constructor(defaultConfig?: Config) {
+    super(defaultConfig)
 
     Sentry.init({
       dsn: SENTRY_DSN,
       enabled: APP_ENV === "prd",
     })
 
-    this.addLogger(new SentryLoggerAdapter(Sentry))
+    this.addLogger(new SentryLoggerAdapter(Sentry, Severity.Error))
   }
 }
 
 export default new Log(
   {
-    console: true,
+    consoleEnabled: true,
+    consoleMinimumLogLevel: __DEV__ ? Severity.Debug : Severity.Error,
   },
-  __DEV__ ? Severity.Debug : Severity.Error,
+
 )
 ```
 

@@ -8,7 +8,7 @@ afterEach(() => {
 
 describe("Logger tests where no console logs should get triggered", () => {
   it("should NOT show console error when console is set to false", () => {
-    const logger = new Logger({ console: false })
+    const logger = new Logger({ consoleEnabled: false })
 
     const spy = jest.spyOn(console, "error")
 
@@ -28,7 +28,7 @@ describe("Logger tests where no console logs should get triggered", () => {
   })
 
   it("should NOT show console error with info", () => {
-    const logger = new Logger({ console: true })
+    const logger = new Logger({ consoleEnabled: true })
 
     const spy = jest.spyOn(console, "error")
 
@@ -40,7 +40,7 @@ describe("Logger tests where no console logs should get triggered", () => {
 
 describe("Logger tests where it's supposed to show appropriate error", () => {
   it("should show console log with info", () => {
-    const logger = new Logger({ console: true })
+    const logger = new Logger({ consoleEnabled: true })
     const message = "Test Info"
 
     const spy = jest.spyOn(console, "info")
@@ -52,7 +52,7 @@ describe("Logger tests where it's supposed to show appropriate error", () => {
   })
 
   it("should show console warn with warn", () => {
-    const logger = new Logger({ console: true })
+    const logger = new Logger({ consoleEnabled: true })
     const message = "Test Warn"
     const spy = jest.spyOn(console, "warn")
 
@@ -63,7 +63,7 @@ describe("Logger tests where it's supposed to show appropriate error", () => {
   })
 
   it("should show console error with error", () => {
-    const logger = new Logger({ console: true })
+    const logger = new Logger({ consoleEnabled: true })
     const message = "Test Error #1"
 
     const spy = jest.spyOn(console, "error")
@@ -75,7 +75,7 @@ describe("Logger tests where it's supposed to show appropriate error", () => {
   })
 
   it("should show console error with error", () => {
-    const logger = new Logger({ console: true })
+    const logger = new Logger({ consoleEnabled: true })
     const message = "Test Error #2"
 
     const spy = jest.spyOn(console, "error")
@@ -122,7 +122,7 @@ describe("Logger tests with specific log message to override default logger conf
   })
 
   it("should not show console error", () => {
-    const logger = new Logger({ console: true })
+    const logger = new Logger({ consoleEnabled: true })
     const message = "Test Error #4"
 
     const spy = jest.spyOn(console, "error")
@@ -135,7 +135,7 @@ describe("Logger tests with specific log message to override default logger conf
 
 describe("Logger namespace test", () => {
   it("should succeed and not log below minimum log level", () => {
-    const logger = new Logger({ console: true }, Severity.Error)
+    const logger = new Logger({ consoleEnabled: true, consoleMinimumLogLevel: Severity.Error })
     const message = "Test Error #4"
 
     const spy = jest.spyOn(console, "warn")
@@ -146,7 +146,7 @@ describe("Logger namespace test", () => {
   })
 
   it("should log when equal minimum log level", () => {
-    const logger = new Logger({ console: true }, Severity.Error)
+    const logger = new Logger({ consoleEnabled: true, consoleMinimumLogLevel: Severity.Error })
     const message = "Test Error #5"
 
     const spy = jest.spyOn(console, "error")
@@ -157,12 +157,23 @@ describe("Logger namespace test", () => {
   })
 
   it("should log when above minimum log level", () => {
-    const logger = new Logger({ console: true }, Severity.Warn)
+    const logger = new Logger({ consoleEnabled: true, consoleMinimumLogLevel: Severity.Warn })
     const message = "Test Error #5"
 
     const spy = jest.spyOn(console, "error")
 
     logger.error(message)
+
+    expect(spy).toHaveBeenCalled()
+  })
+
+  it("should log when above minimum log level when not passed by config", () => {
+    const logger = new Logger({ consoleEnabled: true })
+    const message = "Test Error #6"
+
+    const spy = jest.spyOn(console, "trace")
+
+    logger.trace(message)
 
     expect(spy).toHaveBeenCalled()
   })
