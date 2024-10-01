@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/akadenia/AkadeniaLogger/compare/1.5.2...1.6.0) (2024-10-01)
+
+
+### Features
+
+* **config:** refactor config file and logger constructor ([#26](https://github.com/akadenia/AkadeniaLogger/issues/26)) ([2348566](https://github.com/akadenia/AkadeniaLogger/commit/234856671d129f573e42d68402e32399d1af6cb9))
+
 ## [1.5.2](https://github.com/akadenia/AkadeniaLogger/compare/1.5.1...1.5.2) (2024-09-12)
 
 
