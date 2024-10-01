@@ -15,8 +15,8 @@ export type Options = {
 }
 
 export type Config = {
-  console?: boolean
-  minimumLevel?: Severity
+  consoleEnabled?: boolean
+  consoleMinimumLogLevel?: Severity
 }
 
 export enum PredefinedLogEvents {
@@ -55,12 +55,21 @@ export interface ILogger {
 }
 
 function logToConsole(logLevel: "warn" | "info" | "log" | "error" | "trace" | "debug", message: string, options?: Options) {
-  const consoleLogger = options?.azureContext || console
+  // map log level to azure supported levels: error, warn, verbose, info
+  if (options?.azureContext) {
+    let azureContextLogLevel: string = logLevel
 
-  if (options?.extraData) {
-    consoleLogger[logLevel](message, { extraData: options.extraData })
+    if (logLevel === "trace" || logLevel === "debug" || logLevel === "log") {
+      azureContextLogLevel = "verbose"
+    }
+
+    options?.azureContext[azureContextLogLevel](message)
   } else {
-    consoleLogger[logLevel](message)
+    if (options?.extraData) {
+      console[logLevel](message, { extraData: options.extraData })
+    } else {
+      console[logLevel](message)
+    }
   }
 }
 
@@ -68,29 +77,24 @@ export class Logger implements ILogger {
   name: string = "root"
   defaultConfig?: Config
   namespace?: string
-
-  minimumLogLevel: Severity
   adapters: ILogger[] = []
+  minimumLogLevel: Severity
 
-  constructor(defaultConfig?: Config, consoleMinimumLogLevel = Severity.Debug) {
+  constructor(defaultConfig?: Config) {
     this.defaultConfig = defaultConfig
-    this.minimumLogLevel = consoleMinimumLogLevel
+    this.minimumLogLevel = defaultConfig?.consoleMinimumLogLevel || Severity.Trace
   }
 
   private checkConsole(severity: Severity, options?: Options): boolean {
+    if (options?.forceConsole !== undefined) return !!options?.forceConsole
+
     if (this.minimumLogLevel > severity) return false
 
-    if (options && options.forceConsole !== undefined) return !!options?.forceConsole
-
-    return !!this.defaultConfig?.console
+    return !!this.defaultConfig?.consoleEnabled
   }
 
   addLogger(logger: ILogger): void {
     this.adapters.push(logger)
-  }
-
-  setConsoleMinimumLogLevel(consoleMinimumLogLevel: Severity): void {
-    this.minimumLogLevel = consoleMinimumLogLevel
   }
 
   trace(message: string, options?: Options) {
