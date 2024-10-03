@@ -29,7 +29,7 @@
   "bugs": {
     "url": "https://github.com/akadenia/AkadeniaLogger/issues"
   },
-  "homepage": "https://github.com/akadenia/AkadeniaLogger#readme",
+  "homepage": "https://akadenia.com/packages/akadenia-logger",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
@@ -39,7 +39,7 @@
     "@jest/globals": "^29.7.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/exec": "^6.0.3",
-    "@types/node": "^20.16.5",
+    "@types/node": "^20.16.10",
     "jest": "^29.7.0",
     "prettier": "^3.3.3",
     "semantic-release": "22.0.12",
@@ -48,6 +48,6 @@
   },
   "dependencies": {
     "@akadenia/api": "^1.1.0",
-    "@sentry/types": "^8.30.0"
+    "@sentry/types": "^8.33.1"
   }
 }
