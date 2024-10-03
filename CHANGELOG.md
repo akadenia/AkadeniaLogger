@@ -1,3 +1,10 @@
+## [1.6.1](https://github.com/akadenia/AkadeniaLogger/compare/1.6.0...1.6.1) (2024-10-03)
+
+
+### Bug Fixes
+
+* **npm:** update homepage and upgrade packages ([5d67aee](https://github.com/akadenia/AkadeniaLogger/commit/5d67aeeebc965f32892856b404e12693100d0ccd))
+
 # [1.6.0](https://github.com/akadenia/AkadeniaLogger/compare/1.5.2...1.6.0) (2024-10-01)
 
 
