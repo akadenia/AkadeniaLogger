@@ -23,15 +23,15 @@ export class AzureFunctionsAdapter implements ILogger {
     if (!this.context || typeof this.context[severity] !== 'function') {
       throw new Error(`Invalid Azure Functions context or missing ${severity} method`)
     }
-    const logMessage = options?.extra 
-      ? `${message} ${JSON.stringify(options.extra)}`
+    const logMessage = options?.extraData
+      ? `${message} ${JSON.stringify(options.extraData)}`
       : message
     this.context[severity](logMessage)
   }
 
   async trace(message: string, options?: Options | undefined) {
     if (this.minimumLogLevel > Severity.Trace) return
-    await this.captureMessage(message, AzureFunctionsSeverity.Trace, options)
+    await this.captureMessage(message, AzureFunctionsSeverity.Verbose, options)
   }
 
   async debug(message: string, options?: Options | undefined) {
