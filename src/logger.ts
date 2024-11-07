@@ -11,7 +11,6 @@ export type Options = {
   extraData?: any
   exception?: Error
   signozPayload?: any
-  azureContext?: any
 }
 
 export type Config = {
@@ -55,21 +54,10 @@ export interface ILogger {
 }
 
 function logToConsole(logLevel: "warn" | "info" | "log" | "error" | "trace" | "debug", message: string, options?: Options) {
-  // map log level to azure supported levels: error, warn, verbose, info
-  if (options?.azureContext) {
-    let azureContextLogLevel: string = logLevel
-
-    if (logLevel === "trace" || logLevel === "debug" || logLevel === "log") {
-      azureContextLogLevel = "verbose"
-    }
-
-    options?.azureContext[azureContextLogLevel](message)
+  if (options?.extraData) {
+    console[logLevel](message, { extraData: options.extraData })
   } else {
-    if (options?.extraData) {
-      console[logLevel](message, { extraData: options.extraData })
-    } else {
-      console[logLevel](message)
-    }
+    console[logLevel](message)
   }
 }
 
