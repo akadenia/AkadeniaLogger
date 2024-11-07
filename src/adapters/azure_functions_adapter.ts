@@ -16,43 +16,49 @@ export class AzureFunctionsAdapter implements ILogger {
 
   constructor(context: any, minimumLogLevel = Severity.Debug) {
     this.minimumLogLevel = minimumLogLevel
+    this.context = context
   }
 
   private async captureMessage(message: string, severity: AzureFunctionsSeverity, options?: Options) {
-    this.context[severity](message)
+    if (!this.context || typeof this.context[severity] !== 'function') {
+      throw new Error(`Invalid Azure Functions context or missing ${severity} method`)
+    }
+    const logMessage = options?.extra 
+      ? `${message} ${JSON.stringify(options.extra)}`
+      : message
+    this.context[severity](logMessage)
   }
 
   async trace(message: string, options?: Options | undefined) {
     if (this.minimumLogLevel > Severity.Trace) return
-
-    this.captureMessage(message, AzureFunctionsSeverity.Verbose, options)
+    await this.captureMessage(message, AzureFunctionsSeverity.Trace, options)
   }
 
   async debug(message: string, options?: Options | undefined) {
     if (this.minimumLogLevel > Severity.Debug) return
-
-    this.captureMessage(message, AzureFunctionsSeverity.Verbose, options)
+    await this.captureMessage(message, AzureFunctionsSeverity.Verbose, options)
   }
 
   async info(message: string, options?: Options | undefined) {
     if (this.minimumLogLevel > Severity.Info) return
 
-    this.captureMessage(message, AzureFunctionsSeverity.Info, options)
+    await this.captureMessage(message, AzureFunctionsSeverity.Info, options)
   }
 
   async warn(message: string, options?: Options | undefined) {
     if (this.minimumLogLevel > Severity.Warn) return
 
-    this.captureMessage(message, AzureFunctionsSeverity.Warn, options)
+    await this.captureMessage(message, AzureFunctionsSeverity.Warn, options)
   }
 
   async error(message: string, options?: Options | undefined) {
     if (this.minimumLogLevel > Severity.Error) return
 
-    this.captureMessage(message, AzureFunctionsSeverity.Error, options)
+    await this.captureMessage(message, AzureFunctionsSeverity.Error, options)
   }
 
   async exception(message: string, exception: Error, options?: Options | undefined) {
-    this.captureMessage(`${message} - ${exception.toString()}`, AzureFunctionsSeverity.Error, options)
+    if (this.minimumLogLevel > Severity.Error) return
+    await this.captureMessage(`${message} - ${exception.toString()}`, AzureFunctionsSeverity.Error, options)
   }
 }
