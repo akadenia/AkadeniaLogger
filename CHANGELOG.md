@@ -1,3 +1,10 @@
+## [1.7.1](https://github.com/akadenia/AkadeniaLogger/compare/1.7.0...1.7.1) (2024-11-08)
+
+
+### Bug Fixes
+
+* **azure-functions-adapter:** export adapter ([7faf8fe](https://github.com/akadenia/AkadeniaLogger/commit/7faf8fee7e3168c5588826069e55d54f60fa0339))
+
 # [1.7.0](https://github.com/akadenia/AkadeniaLogger/compare/1.6.1...1.7.0) (2024-11-08)
 
 
