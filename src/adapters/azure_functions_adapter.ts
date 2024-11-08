@@ -3,8 +3,10 @@ import { Severity, ILogger, Options } from "../logger"
 export enum AzureFunctionsSeverity {
   Error = "error",
   Warn = "warn",
-  Verbose = "verbose",
+  Debug = "debug",
+  Trace = "trace",
   Info = "info",
+  Log = "log",
 }
 
 export class AzureFunctionsAdapter implements ILogger {
@@ -29,12 +31,12 @@ export class AzureFunctionsAdapter implements ILogger {
 
   async trace(message: string, options?: Options | undefined) {
     if (this.minimumLogLevel > Severity.Trace) return
-    await this.captureMessage(message, AzureFunctionsSeverity.Verbose, options)
+    await this.captureMessage(message, AzureFunctionsSeverity.Trace, options)
   }
 
   async debug(message: string, options?: Options | undefined) {
     if (this.minimumLogLevel > Severity.Debug) return
-    await this.captureMessage(message, AzureFunctionsSeverity.Verbose, options)
+    await this.captureMessage(message, AzureFunctionsSeverity.Debug, options)
   }
 
   async info(message: string, options?: Options | undefined) {
