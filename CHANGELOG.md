@@ -1,3 +1,10 @@
+# [1.7.0](https://github.com/akadenia/AkadeniaLogger/compare/1.6.1...1.7.0) (2024-11-08)
+
+
+### Features
+
+* **azure-functions-adapter:** implement azure functions context logger as an adapter ([#29](https://github.com/akadenia/AkadeniaLogger/issues/29)) ([77c3f5d](https://github.com/akadenia/AkadeniaLogger/commit/77c3f5d9807ff6f98774a32ec706bb068ef52fb5))
+
 ## [1.6.1](https://github.com/akadenia/AkadeniaLogger/compare/1.6.0...1.6.1) (2024-10-03)
 
 
