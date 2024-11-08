@@ -1,3 +1,10 @@
+## [1.7.2](https://github.com/akadenia/AkadeniaLogger/compare/1.7.1...1.7.2) (2024-11-08)
+
+
+### Bug Fixes
+
+* **azure-func-adapter:** fix azure functions context severities ([b11d9aa](https://github.com/akadenia/AkadeniaLogger/commit/b11d9aa8f43fa638eea649ce8ff0161080a6c155))
+
 ## [1.7.1](https://github.com/akadenia/AkadeniaLogger/compare/1.7.0...1.7.1) (2024-11-08)
 
 
