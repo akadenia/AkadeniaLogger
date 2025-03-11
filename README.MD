@@ -1,7 +1,7 @@
 ## Getting Started
 
-* Create a `log.ts` file in your project
-* here's a sample code
+- Create a `log.ts` file in your project
+- here's a sample code
 
 ```
 import * as Sentry from "@sentry/react-native"
@@ -30,5 +30,5 @@ export default new Log(
 )
 ```
 
-* Import the Log instance : `import Log from "<PATH to log.ts>"`
-* Usage example: `Log.debug("Hello World")`
+- Import the Log instance : `import Log from "<PATH to log.ts>"`
+- Usage example: `Log.debug("Hello World")`
