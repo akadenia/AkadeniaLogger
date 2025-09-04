@@ -1,7 +1,7 @@
 <div align="center">
   <img src="https://cdn.akadenia.com/images/akadenia-webp/logo/horizontal-logo.svg" alt="Akadenia" width="200" style="filter: drop-shadow(0 0 1px rgba(0,0,0,1)) drop-shadow(0 0 1px rgba(255,255,255,1));" />
   
-  # @akadenia/logger
+  ## @akadenia/logger
   
   [![npm version](https://badge.fury.io/js/%40akadenia%2Flogger.svg)](https://badge.fury.io/js/%40akadenia%2Flogger)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
