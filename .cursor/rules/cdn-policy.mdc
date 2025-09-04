@@ -1,3 +1,9 @@
+---
+description: CDN and Asset Policy - All images must use our CDN
+globs: ["**/*.md", "**/*.MD", "**/*.mdx", "**/*.MDX"]
+alwaysApply: true
+---
+
 # CDN and Asset Policy
 
 ## STRICT POLICY

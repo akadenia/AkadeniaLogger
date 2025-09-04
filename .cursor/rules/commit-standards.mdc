@@ -1,0 +1,36 @@
+---
+description: Conventional Commit Standards - All commits must follow proper format
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Commit Standards
+
+## Conventional Commits Format
+ALL commits MUST follow the format: `type(scope): description`
+
+### Required Types
+- `feat`: New features
+- `fix`: Bug fixes
+- `docs`: Documentation changes
+- `style`: Code style changes (formatting, etc.)
+- `refactor`: Code refactoring
+- `test`: Adding or updating tests
+- `chore`: Maintenance tasks
+
+### Required Scope
+- `readme`: README file changes
+- `api`: API changes
+- `helpers`: Helper function changes
+- `logger`: Logger changes
+- `storage`: Storage related changes
+- `build`: Build system changes
+- `deps`: Dependency changes
+
+### Examples
+- `docs(readme): improve README with comprehensive examples`
+- `feat(api): add new HTTP client method`
+- `fix(helpers): resolve date parsing issue`
+- `chore(deps): update dependencies`
+
+## NEVER commit without proper scope and type!
