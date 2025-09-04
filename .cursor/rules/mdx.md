@@ -3,13 +3,14 @@
 When working with README.MD files that will be converted to MDX:
 
 ## Heading Structure Rules
-- **Only ONE H1 heading per document** - The main title should be the only H1
+- **NO H1 headings allowed** - MDX validation requires NO H1 headings in generated files
+- **Use H2 for main package title** - Convert `# @akadenia/package-name` to `## @akadenia/package-name`
 - **No H1 headings in examples or code blocks** - Use H2, H3, or regular text instead
-- **Maintain proper heading hierarchy** - H1 → H2 → H3 → H4 (no skipping levels)
+- **Maintain proper heading hierarchy** - H2 → H3 → H4 (no skipping levels)
 - **Convert H4 headings in examples to H3 or regular text** - MDX doesn't handle nested H4s well
 
 ## Specific Fixes for MDX Conversion
-1. **Package title H1**: Keep only the main package title as H1 (e.g., `# @akadenia/logger`)
+1. **Package title H2**: Convert main package title from H1 to H2 (e.g., `# @akadenia/logger` → `## @akadenia/logger`)
 2. **Example headings**: Convert H1 headings in examples to H2 or regular text
 3. **Code block headings**: Use H3 instead of H4 for headings within examples
 4. **Commit message examples**: Convert H1 headings in commit examples to H2 or regular text
