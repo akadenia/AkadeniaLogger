@@ -178,3 +178,72 @@ describe("Logger namespace test", () => {
     expect(spy).toHaveBeenCalled()
   })
 })
+
+describe("Logger tests with response implementation", () => {
+  it("should pass response to extraData", () => {
+    const logger = new Logger({ consoleEnabled: true })
+    const consoleErrorSpy = jest.spyOn(console, "error")
+
+    const message = "Test with response"
+    const extraData = {
+      response: {
+        status: 404,
+        statusText: "Not Found",
+        data: { error: "Details" },
+      },
+    }
+
+    logger.error(message, { extraData })
+
+    expect(consoleErrorSpy).toHaveBeenCalled()
+    expect(consoleErrorSpy).toHaveBeenCalledWith(message, { extraData })
+  })
+
+  it("should pass response to extraData with other fields", () => {
+    const logger = new Logger({ consoleEnabled: true })
+    const consoleErrorSpy = jest.spyOn(console, "error")
+
+    const message = "Test with response and other fields"
+    const extraData = {
+      response: {
+        status: 500,
+        statusText: "Internal Server Error",
+        message: "Server error",
+        data: { errorCode: "ERR_500" },
+      },
+      userId: "12345",
+      timestamp: Date.now(),
+      action: "fetch_data",
+    }
+
+    logger.error(message, { extraData })
+
+    expect(consoleErrorSpy).toHaveBeenCalled()
+    expect(consoleErrorSpy).toHaveBeenCalledWith(message, { extraData })
+  })
+
+  it("should handle large response data exceeding 16kb", () => {
+    const logger = new Logger({ consoleEnabled: true })
+    const consoleErrorSpy = jest.spyOn(console, "error")
+
+    const message = "Test with large response"
+    const largeData = "x".repeat(20 * 1024) // 20kb of data
+    const extraData = {
+      response: {
+        status: 500,
+        statusText: "Internal Server Error",
+        data: largeData,
+      },
+      userId: "12345",
+    }
+
+    logger.error(message, { extraData })
+
+    expect(consoleErrorSpy).toHaveBeenCalled()
+    expect(consoleErrorSpy).toHaveBeenCalledWith(message, { extraData })
+
+    // Verify the data size is indeed large (>16kb)
+    const dataSize = new TextEncoder().encode(extraData.response.data).length
+    expect(dataSize).toBeGreaterThan(16 * 1024)
+  })
+})
