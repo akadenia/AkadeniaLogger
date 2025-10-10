@@ -25,6 +25,34 @@ describe("SentryAdapter Tests", () => {
     jest.clearAllMocks()
   })
 
+  describe("truncateToByteSize", () => {
+    it("should handle ASCII characters correctly", () => {
+      const str = "Hello World!".repeat(100)
+      const result = (sentryAdapter as any).truncateToByteSize(str, 100)
+      const resultBytes = new TextEncoder().encode(result).length
+
+      expect(resultBytes).toBeLessThanOrEqual(100)
+      expect(result).toContain("Hello World!")
+      expect(result.length).toBeLessThan(str.length) // Should be truncated
+    })
+
+    it("should handle multi-byte characters correctly", () => {
+      const str = "😊🚀🎉".repeat(50) // Each emoji is 4 bytes
+      const result = (sentryAdapter as any).truncateToByteSize(str, 100) // 100 bytes = 25 emojis max
+      const resultBytes = new TextEncoder().encode(result).length
+
+      expect(resultBytes).toBeLessThanOrEqual(100)
+      expect(resultBytes).toBeGreaterThan(90) // Should be close to the limit
+    })
+
+    it("should return original string if within byte limit", () => {
+      const str = "Hello World!"
+      const result = (sentryAdapter as any).truncateToByteSize(str, 100)
+
+      expect(result).toBe(str)
+    })
+  })
+
   describe("trimResponse", () => {
     it("should trim response to essential fields only", () => {
       const response = {
@@ -249,6 +277,58 @@ describe("SentryAdapter Tests", () => {
 
       expect(parsed).toEqual(processedData)
     })
+
+    it("should truncate large extraData when no response", () => {
+      const largeData = "x".repeat(20 * 1024) // 20KB of data
+      const processedData = {
+        userId: "12345",
+        largeField: largeData,
+        otherField: "some other data",
+      }
+
+      const result = (sentryAdapter as any).truncateDataIfNeeded(processedData)
+
+      expect(result).toContain("... [TRUNCATED - extraData]")
+      expect(result.length).toBeLessThan(20 * 1024)
+      expect(result.length).toBeLessThan(16 * 1024)
+    })
+
+    it("should handle multi-byte characters correctly in truncation", () => {
+      // Create data with emojis and other multi-byte characters
+      const emojiData = "😊🚀🎉".repeat(5000) // Each emoji is 4 bytes, so this is ~60KB
+      const processedData = {
+        userId: "12345",
+        emojiField: emojiData,
+        regularField: "normal text",
+      }
+
+      const result = (sentryAdapter as any).truncateDataIfNeeded(processedData)
+      const resultBytes = new TextEncoder().encode(result).length
+
+      expect(result).toContain("... [TRUNCATED - extraData]")
+      expect(resultBytes).toBeLessThan(16 * 1024) // Should be under 16KB in actual bytes
+      expect(resultBytes).toBeGreaterThan(15 * 1024) // Should be close to the limit
+    })
+
+    it("should truncate response data with multi-byte characters correctly", () => {
+      // Create response data with emojis
+      const emojiData = "🌟✨💫".repeat(3000) // Each emoji is 4 bytes, so this is ~36KB
+      const processedData = {
+        userId: "12345",
+        response: {
+          status: 200,
+          data: emojiData,
+        },
+      }
+
+      const result = (sentryAdapter as any).truncateDataIfNeeded(processedData)
+      const parsed = JSON.parse(result)
+      const resultBytes = new TextEncoder().encode(result).length
+
+      expect(parsed.response._dataTruncated).toBe(true)
+      expect(parsed.response.data).toContain("... [TRUNCATED]")
+      expect(resultBytes).toBeLessThan(16 * 1024) // Should be under 16KB in actual bytes
+    })
   })
 
   describe("captureMessage integration", () => {
@@ -299,6 +379,19 @@ describe("SentryAdapter Tests", () => {
       expect(mockSentry.withScope).toHaveBeenCalled()
       expect(mockScope.setExtra).not.toHaveBeenCalled()
       expect(mockSentry.captureMessage).toHaveBeenCalledWith("Simple error", SentrySeverity.Error)
+    })
+
+    it("should handle large extraData without response in captureMessage", () => {
+      const largeData = "x".repeat(20 * 1024) // 20KB
+      const extraData = {
+        largeField: largeData,
+        userId: "12345",
+      }
+
+      sentryAdapter.error("Large extraData error", { extraData })
+
+      expect(mockSentry.withScope).toHaveBeenCalled()
+      expect(mockScope.setExtra).toHaveBeenCalledWith("extra-data", expect.stringContaining("... [TRUNCATED - extraData]"))
     })
   })
 })

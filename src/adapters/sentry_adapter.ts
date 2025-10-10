@@ -54,35 +54,73 @@ export class SentryAdapter implements ILogger {
     return processedData
   }
 
+  private truncateToByteSize(str: string, maxBytes: number): string {
+    const encoder = new TextEncoder()
+    let truncated = str
+
+    // Use binary search for better performance on large strings
+    if (encoder.encode(truncated).length <= maxBytes) {
+      return truncated
+    }
+
+    // Binary search to find the optimal truncation point
+    let left = 0
+    let right = str.length
+    let bestFit = 0
+
+    while (left <= right) {
+      const mid = Math.floor((left + right) / 2)
+      const testStr = str.substring(0, mid)
+      const byteSize = encoder.encode(testStr).length
+
+      if (byteSize <= maxBytes) {
+        bestFit = mid
+        left = mid + 1
+      } else {
+        right = mid - 1
+      }
+    }
+
+    return str.substring(0, bestFit)
+  }
+
   private truncateDataIfNeeded(processedData: any): string {
     const SENTRY_MAX_SIZE = 16 * 1024 // 16kb in bytes
     let dataString = JSON.stringify(processedData, null, 4)
     let dataSize = new TextEncoder().encode(dataString).length
 
-    if (dataSize > SENTRY_MAX_SIZE && processedData.response?.data) {
+    if (dataSize > SENTRY_MAX_SIZE) {
       // Create a deep copy to avoid mutating the original object
       const dataCopy = JSON.parse(JSON.stringify(processedData))
 
-      // Calculate available space for response.data
-      const tempData = JSON.parse(JSON.stringify(dataCopy))
-      delete tempData.response.data
-      const baseSize = new TextEncoder().encode(JSON.stringify(tempData, null, 4)).length
-      const availableSpace = SENTRY_MAX_SIZE - baseSize - 100 // Reserve 100 bytes for truncation indicator
+      // If there's a response with data, try to truncate just the response.data first
+      if (processedData.response?.data) {
+        const tempData = JSON.parse(JSON.stringify(dataCopy))
+        delete tempData.response.data
+        const baseSize = new TextEncoder().encode(JSON.stringify(tempData, null, 4)).length
+        const availableSpace = SENTRY_MAX_SIZE - baseSize - 100 // Reserve 100 bytes for truncation indicator
 
-      if (availableSpace > 0) {
-        const dataStr = JSON.stringify(dataCopy.response.data)
-        if (dataStr?.length > availableSpace) {
-          // Truncate response.data to fit within limit
-          const truncated = dataStr.substring(0, availableSpace)
-          dataCopy.response.data = `${truncated}... [TRUNCATED]`
+        if (availableSpace > 0) {
+          const dataStr = JSON.stringify(dataCopy.response.data)
+          const dataBytes = new TextEncoder().encode(dataStr)
+
+          if (dataBytes.length > availableSpace) {
+            // Truncate response.data to fit within limit using byte-based truncation
+            const truncated = this.truncateToByteSize(dataStr, availableSpace - 20) // Reserve space for truncation indicator
+            dataCopy.response.data = `${truncated}... [TRUNCATED]`
+            dataCopy.response._dataTruncated = true
+            dataString = JSON.stringify(dataCopy, null, 4)
+          }
+        } else {
+          dataCopy.response.data = "[Removed - Exceeds size limit]"
           dataCopy.response._dataTruncated = true
+          dataString = JSON.stringify(dataCopy, null, 4)
         }
       } else {
-        dataCopy.response.data = "[Removed - Exceeds size limit]"
-        dataCopy.response._dataTruncated = true
+        // No response.data to truncate, truncate the entire payload using byte-based truncation
+        const truncated = this.truncateToByteSize(dataString, SENTRY_MAX_SIZE - 50)
+        dataString = `${truncated}... [TRUNCATED - extraData]`
       }
-
-      dataString = JSON.stringify(dataCopy, null, 4)
     }
 
     return dataString
@@ -94,14 +132,9 @@ export class SentryAdapter implements ILogger {
         // Process extraData and response together
         const processedData = this.processData(options.extraData, options.response)
 
-        // Check if we have a response that needs truncation
-        if (options.response && typeof options.response === "object" && Object.keys(options.response).length > 0) {
-          const dataString = this.truncateDataIfNeeded(processedData)
-          scope.setExtra("extra-data", dataString)
-        } else {
-          // No response, just stringify extraData
-          scope.setExtra("extra-data", JSON.stringify(processedData, null, 4))
-        }
+        // Always check size limits to prevent exceeding Sentry's 16KB limit
+        const dataString = this.truncateDataIfNeeded(processedData)
+        scope.setExtra("extra-data", dataString)
       }
 
       if (severity === SentrySeverity.Fatal && options?.exception) {
