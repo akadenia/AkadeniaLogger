@@ -54,6 +54,26 @@ export class SentryAdapter implements ILogger {
     return processedData
   }
 
+  private safeStringify(value: any, space?: number): string {
+    const seen = new WeakSet()
+    try {
+      return JSON.stringify(
+        value,
+        (key, val) => {
+          if (typeof val === "bigint") return val.toString()
+          if (typeof val === "object" && val !== null) {
+            if (seen.has(val)) return "[Circular]"
+            seen.add(val)
+          }
+          return val
+        },
+        space,
+      )!
+    } catch {
+      return "[Unserializable extra-data]"
+    }
+  }
+
   private truncateToByteSize(str: string, maxBytes: number): string {
     const encoder = new TextEncoder()
     let truncated = str
@@ -87,22 +107,22 @@ export class SentryAdapter implements ILogger {
   private truncateDataIfNeeded(processedData: any): string {
     const SENTRY_MAX_SIZE = 16 * 1024 // 16kb in bytes
     const encoder = new TextEncoder()
-    let dataString = JSON.stringify(processedData, null, 4)
+    let dataString = this.safeStringify(processedData, 4)
     let dataSize = encoder.encode(dataString).length
 
     if (dataSize > SENTRY_MAX_SIZE) {
       // Create a deep copy to avoid mutating the original object
-      const dataCopy = JSON.parse(JSON.stringify(processedData))
+      const dataCopy = JSON.parse(this.safeStringify(processedData))
 
       // If there's a response with data, try to truncate just the response.data first
       if (processedData.response?.data) {
-        const tempData = JSON.parse(JSON.stringify(dataCopy))
+        const tempData = JSON.parse(this.safeStringify(dataCopy))
         delete tempData.response.data
-        const baseSize = encoder.encode(JSON.stringify(tempData, null, 4)).length
+        const baseSize = encoder.encode(this.safeStringify(tempData, 4)).length
         const availableSpace = SENTRY_MAX_SIZE - baseSize - 100 // Reserve 100 bytes for truncation indicator
 
         if (availableSpace > 0) {
-          const dataStr = JSON.stringify(dataCopy.response.data)
+          const dataStr = this.safeStringify(dataCopy.response.data)
           const dataBytes = encoder.encode(dataStr)
 
           if (dataBytes.length > availableSpace) {
@@ -110,13 +130,13 @@ export class SentryAdapter implements ILogger {
             const truncated = this.truncateToByteSize(dataStr, availableSpace - 20) // Reserve space for truncation indicator
             dataCopy.response.data = `${truncated}... [TRUNCATED]`
             dataCopy.response._dataTruncated = true
-            dataString = JSON.stringify(dataCopy, null, 4)
+            dataString = this.safeStringify(dataCopy, 4)
             dataSize = encoder.encode(dataString).length
           }
         } else {
           dataCopy.response.data = "[Removed - Exceeds size limit]"
           dataCopy.response._dataTruncated = true
-          dataString = JSON.stringify(dataCopy, null, 4)
+          dataString = this.safeStringify(dataCopy, 4)
           dataSize = encoder.encode(dataString).length
         }
       } else {

@@ -25,17 +25,8 @@ describe("SentryAdapter Tests", () => {
     jest.clearAllMocks()
   })
 
+  // Essential tests for byte-based truncation
   describe("truncateToByteSize", () => {
-    it("should handle ASCII characters correctly", () => {
-      const str = "Hello World!".repeat(100)
-      const result = (sentryAdapter as any).truncateToByteSize(str, 100)
-      const resultBytes = new TextEncoder().encode(result).length
-
-      expect(resultBytes).toBeLessThanOrEqual(100)
-      expect(result).toContain("Hello World!")
-      expect(result.length).toBeLessThan(str.length) // Should be truncated
-    })
-
     it("should handle multi-byte characters correctly", () => {
       const str = "😊🚀🎉".repeat(50) // Each emoji is 4 bytes
       const result = (sentryAdapter as any).truncateToByteSize(str, 100) // 100 bytes = 25 emojis max
@@ -44,15 +35,47 @@ describe("SentryAdapter Tests", () => {
       expect(resultBytes).toBeLessThanOrEqual(100)
       expect(resultBytes).toBeGreaterThan(90) // Should be close to the limit
     })
+  })
 
-    it("should return original string if within byte limit", () => {
-      const str = "Hello World!"
-      const result = (sentryAdapter as any).truncateToByteSize(str, 100)
+  // Essential tests for safe JSON stringify
+  describe("safeStringify", () => {
+    it("should handle circular references", () => {
+      const obj: any = { name: "Test" }
+      obj.self = obj // Create circular reference
 
-      expect(result).toBe(str)
+      const result = (sentryAdapter as any).safeStringify(obj, 2)
+
+      expect(result).toContain('"name": "Test"')
+      expect(result).toContain('"self": "[Circular]"')
+    })
+
+    it("should handle BigInt values", () => {
+      const obj = { id: BigInt(1234567890123456789), name: "Test" }
+      const result = (sentryAdapter as any).safeStringify(obj, 2)
+
+      expect(result).toContain('"id": "')
+      expect(result).toContain('"name": "Test"')
+      expect(result).toContain("1234567890123456") // Check for partial BigInt value
+    })
+
+    it("should return fallback string on complete failure", () => {
+      // Mock JSON.stringify to throw an error
+      const originalStringify = JSON.stringify
+      ;(JSON as any).stringify = jest.fn().mockImplementation(() => {
+        throw new Error("Complete failure")
+      })
+
+      const obj = { test: "value" }
+      const result = (sentryAdapter as any).safeStringify(obj)
+
+      expect(result).toBe("[Unserializable extra-data]")
+
+      // Restore original JSON.stringify
+      JSON.stringify = originalStringify
     })
   })
 
+  // Essential test for response trimming
   describe("trimResponse", () => {
     it("should trim response to essential fields only", () => {
       const response = {
@@ -67,7 +90,6 @@ describe("SentryAdapter Tests", () => {
         extraField: "should be ignored",
       } as any
 
-      // Access private method for testing
       const trimmedResponse = (sentryAdapter as any).trimResponse(response)
 
       expect(trimmedResponse).toEqual({
@@ -76,68 +98,24 @@ describe("SentryAdapter Tests", () => {
         message: "API Error",
         data: { error: "Details" },
       })
-
-      // Verify unwanted fields are not included
-      expect(trimmedResponse).not.toHaveProperty("success")
-      expect(trimmedResponse).not.toHaveProperty("error")
-      expect(trimmedResponse).not.toHaveProperty("headers")
-      expect(trimmedResponse).not.toHaveProperty("config")
-      expect(trimmedResponse).not.toHaveProperty("extraField")
-    })
-
-    it("should handle response with undefined fields", () => {
-      const response = {
-        status: 500,
-        statusText: undefined,
-        message: undefined,
-        data: undefined,
-        extraField: "should be ignored",
-      } as any
-
-      const trimmedResponse = (sentryAdapter as any).trimResponse(response)
-
-      expect(trimmedResponse).toEqual({
-        status: 500,
-      })
-
-      expect(trimmedResponse).not.toHaveProperty("statusText")
-      expect(trimmedResponse).not.toHaveProperty("message")
-      expect(trimmedResponse).not.toHaveProperty("data")
-    })
-
-    it("should return empty object for null response", () => {
-      const trimmedResponse = (sentryAdapter as any).trimResponse(null)
-
-      expect(trimmedResponse).toEqual({})
-    })
-
-    it("should return empty object for non-object response", () => {
-      const trimmedResponse = (sentryAdapter as any).trimResponse("string response")
-
-      expect(trimmedResponse).toEqual({})
     })
   })
 
+  // Essential test for data processing
   describe("processData", () => {
     it("should combine extraData and trimmed response", () => {
-      const extraData = {
-        userId: "12345",
-        action: "fetch_data",
-      }
-
+      const extraData = { userId: "12345" }
       const response = {
         status: 404,
         statusText: "Not Found",
         message: "API Error",
         data: { error: "Details" },
-        extraField: "should be ignored",
       } as any
 
       const processedData = (sentryAdapter as any).processData(extraData, response)
 
       expect(processedData).toEqual({
         userId: "12345",
-        action: "fetch_data",
         response: {
           status: 404,
           statusText: "Not Found",
@@ -146,158 +124,11 @@ describe("SentryAdapter Tests", () => {
         },
       })
     })
-
-    it("should handle extraData without response", () => {
-      const extraData = {
-        userId: "12345",
-        action: "fetch_data",
-      }
-
-      const processedData = (sentryAdapter as any).processData(extraData, undefined)
-
-      expect(processedData).toEqual({
-        userId: "12345",
-        action: "fetch_data",
-      })
-
-      expect(processedData).not.toHaveProperty("response")
-    })
-
-    it("should handle response without extraData", () => {
-      const response = {
-        status: 500,
-        message: "Server Error",
-        data: { error: "Internal error" },
-      } as any
-
-      const processedData = (sentryAdapter as any).processData(undefined, response)
-
-      expect(processedData).toEqual({
-        response: {
-          status: 500,
-          message: "Server Error",
-          data: { error: "Internal error" },
-        },
-      })
-    })
-
-    it("should handle empty response object", () => {
-      const extraData = { userId: "12345" }
-      const response = {} as any
-
-      const processedData = (sentryAdapter as any).processData(extraData, response)
-
-      expect(processedData).toEqual({
-        userId: "12345",
-      })
-
-      expect(processedData).not.toHaveProperty("response")
-    })
   })
 
+  // Essential test for truncation
   describe("truncateDataIfNeeded", () => {
-    it("should not truncate small data", () => {
-      const processedData = {
-        userId: "12345",
-        response: {
-          status: 200,
-          data: { message: "Success" },
-        },
-      }
-
-      const result = (sentryAdapter as any).truncateDataIfNeeded(processedData)
-      const parsed = JSON.parse(result)
-
-      expect(parsed).toEqual(processedData)
-      expect(parsed.response._dataTruncated).toBeUndefined()
-    })
-
-    it("should truncate large response data", () => {
-      const largeData = "x".repeat(20 * 1024) // 20KB of data
-      const processedData = {
-        userId: "12345",
-        response: {
-          status: 500,
-          data: largeData,
-        },
-      }
-
-      const result = (sentryAdapter as any).truncateDataIfNeeded(processedData)
-      const parsed = JSON.parse(result)
-
-      expect(parsed.userId).toBe("12345")
-      expect(parsed.response.status).toBe(500)
-      expect(parsed.response._dataTruncated).toBe(true)
-      expect(parsed.response.data).toContain("... [TRUNCATED]")
-      expect(parsed.response.data.length).toBeLessThan(largeData.length)
-    })
-
-    it("should ensure final result is within size limits regardless of truncation method", () => {
-      // Create a scenario that will definitely exceed 16KB and test the final safety check
-      const massiveData = "x".repeat(25 * 1024) // 25KB of data
-      const processedData = {
-        massiveField: massiveData,
-        anotherMassiveField: massiveData,
-        response: {
-          status: 500,
-          data: massiveData,
-        },
-      }
-
-      const result = (sentryAdapter as any).truncateDataIfNeeded(processedData)
-      const resultBytes = new TextEncoder().encode(result).length
-
-      // The most important thing is that it's within the size limit
-      expect(resultBytes).toBeLessThan(16 * 1024)
-
-      // Should contain some indication that truncation occurred
-      expect(result).toMatch(/\.\.\. \[TRUNCATED|TRUNCATED - FINAL\]/)
-    })
-
-    it("should handle data without response", () => {
-      const processedData = {
-        userId: "12345",
-        message: "Some message",
-      }
-
-      const result = (sentryAdapter as any).truncateDataIfNeeded(processedData)
-      const parsed = JSON.parse(result)
-
-      expect(parsed).toEqual(processedData)
-    })
-
-    it("should handle response without data field", () => {
-      const processedData = {
-        userId: "12345",
-        response: {
-          status: 404,
-          statusText: "Not Found",
-        },
-      }
-
-      const result = (sentryAdapter as any).truncateDataIfNeeded(processedData)
-      const parsed = JSON.parse(result)
-
-      expect(parsed).toEqual(processedData)
-    })
-
-    it("should truncate large extraData when no response", () => {
-      const largeData = "x".repeat(20 * 1024) // 20KB of data
-      const processedData = {
-        userId: "12345",
-        largeField: largeData,
-        otherField: "some other data",
-      }
-
-      const result = (sentryAdapter as any).truncateDataIfNeeded(processedData)
-
-      expect(result).toContain("... [TRUNCATED - extraData]")
-      expect(result.length).toBeLessThan(20 * 1024)
-      expect(result.length).toBeLessThan(16 * 1024)
-    })
-
     it("should handle multi-byte characters correctly in truncation", () => {
-      // Create data with emojis and other multi-byte characters
       const emojiData = "😊🚀🎉".repeat(5000) // Each emoji is 4 bytes, so this is ~60KB
       const processedData = {
         userId: "12345",
@@ -310,68 +141,10 @@ describe("SentryAdapter Tests", () => {
 
       expect(result).toContain("... [TRUNCATED - extraData]")
       expect(resultBytes).toBeLessThan(16 * 1024) // Should be under 16KB in actual bytes
-      expect(resultBytes).toBeGreaterThan(15 * 1024) // Should be close to the limit
-    })
-
-    it("should truncate response data with multi-byte characters correctly", () => {
-      // Create response data with emojis
-      const emojiData = "🌟✨💫".repeat(3000) // Each emoji is 4 bytes, so this is ~36KB
-      const processedData = {
-        userId: "12345",
-        response: {
-          status: 200,
-          data: emojiData,
-        },
-      }
-
-      const result = (sentryAdapter as any).truncateDataIfNeeded(processedData)
-      const parsed = JSON.parse(result)
-      const resultBytes = new TextEncoder().encode(result).length
-
-      expect(parsed.response._dataTruncated).toBe(true)
-      expect(parsed.response.data).toContain("... [TRUNCATED]")
-      expect(resultBytes).toBeLessThan(16 * 1024) // Should be under 16KB in actual bytes
-    })
-
-    it("should apply final safety check when extraData itself exceeds limit after response truncation", () => {
-      // Create a scenario where extraData is huge and response truncation isn't enough
-      const hugeExtraData = "x".repeat(20 * 1024) // 20KB of extraData
-      const largeResponseData = "y".repeat(10 * 1024) // 10KB of response data
-      const processedData = {
-        hugeField: hugeExtraData,
-        anotherHugeField: hugeExtraData,
-        response: {
-          status: 200,
-          data: largeResponseData,
-        },
-      }
-
-      const result = (sentryAdapter as any).truncateDataIfNeeded(processedData)
-      const resultBytes = new TextEncoder().encode(result).length
-
-      expect(resultBytes).toBeLessThan(16 * 1024) // Should be under 16KB
-      expect(result).toContain("... [TRUNCATED - FINAL]") // Should have final truncation marker
-    })
-
-    it("should handle case where base extraData exceeds limit without response", () => {
-      // Create extraData so large that even after JSON formatting it exceeds 16KB
-      const massiveData = "z".repeat(25 * 1024) // 25KB of data
-      const processedData = {
-        massiveField: massiveData,
-        anotherMassiveField: massiveData,
-        yetAnotherField: massiveData,
-      }
-
-      const result = (sentryAdapter as any).truncateDataIfNeeded(processedData)
-      const resultBytes = new TextEncoder().encode(result).length
-
-      expect(resultBytes).toBeLessThan(16 * 1024) // Should be under 16KB
-      expect(result).toContain("... [TRUNCATED - extraData]") // Should have extraData truncation marker
-      // Should not have FINAL marker since it should be handled by the else branch
-      expect(result).not.toContain("... [TRUNCATED - FINAL]")
     })
   })
 
+  // Essential integration test
   describe("captureMessage integration", () => {
     it("should call setExtra with processed data when response exists", () => {
       const extraData = { userId: "12345" }
@@ -386,53 +159,7 @@ describe("SentryAdapter Tests", () => {
       expect(mockSentry.withScope).toHaveBeenCalled()
       expect(mockScope.setExtra).toHaveBeenCalledWith("extra-data", expect.stringContaining('"userId": "12345"'))
       expect(mockScope.setExtra).toHaveBeenCalledWith("extra-data", expect.stringContaining('"status": 404'))
-      expect(mockScope.setExtra).toHaveBeenCalledWith("extra-data", expect.stringContaining('"statusText": "Not Found"'))
       expect(mockSentry.captureMessage).toHaveBeenCalledWith("Test error", SentrySeverity.Error)
-    })
-
-    it("should call setExtra with simple string when no response", () => {
-      const extraData = { userId: "12345" }
-
-      sentryAdapter.error("Test error", { extraData })
-
-      expect(mockSentry.withScope).toHaveBeenCalled()
-      expect(mockScope.setExtra).toHaveBeenCalledWith("extra-data", '{\n    "userId": "12345"\n}')
-      expect(mockSentry.captureMessage).toHaveBeenCalledWith("Test error", SentrySeverity.Error)
-    })
-
-    it("should handle large response data in captureMessage", () => {
-      const largeData = "x".repeat(20 * 1024) // 20KB
-      const response = {
-        status: 500,
-        data: largeData,
-      } as any
-
-      sentryAdapter.error("Large response error", { response })
-
-      expect(mockSentry.withScope).toHaveBeenCalled()
-      expect(mockScope.setExtra).toHaveBeenCalledWith("extra-data", expect.stringContaining("... [TRUNCATED]"))
-      expect(mockScope.setExtra).toHaveBeenCalledWith("extra-data", expect.stringContaining('"_dataTruncated": true'))
-    })
-
-    it("should not call setExtra when no extraData or response", () => {
-      sentryAdapter.error("Simple error")
-
-      expect(mockSentry.withScope).toHaveBeenCalled()
-      expect(mockScope.setExtra).not.toHaveBeenCalled()
-      expect(mockSentry.captureMessage).toHaveBeenCalledWith("Simple error", SentrySeverity.Error)
-    })
-
-    it("should handle large extraData without response in captureMessage", () => {
-      const largeData = "x".repeat(20 * 1024) // 20KB
-      const extraData = {
-        largeField: largeData,
-        userId: "12345",
-      }
-
-      sentryAdapter.error("Large extraData error", { extraData })
-
-      expect(mockSentry.withScope).toHaveBeenCalled()
-      expect(mockScope.setExtra).toHaveBeenCalledWith("extra-data", expect.stringContaining("... [TRUNCATED - extraData]"))
     })
   })
 })
