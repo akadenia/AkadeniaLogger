@@ -1,14 +1,14 @@
 <div align="center">
   <img src="https://cdn.akadenia.com/images/akadenia-webp/logo/horizontal-logo.svg" alt="Akadenia" width="200" style="filter: drop-shadow(0 0 1px rgba(0,0,0,1)) drop-shadow(0 0 1px rgba(255,255,255,1));" />
-  
+
   # @akadenia/logger
-  
+
   [![npm version](https://badge.fury.io/js/%40akadenia%2Flogger.svg)](https://badge.fury.io/js/%40akadenia%2Flogger)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
   [![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg)](http://www.typescriptlang.org/)
-  
+
   A flexible and extensible logging library for TypeScript applications, part of the Akadenia ecosystem.
-  
+
   [Documentation](https://akadenia.com/packages/akadenia-logger) • [GitHub](https://github.com/akadenia/AkadeniaLogger) • [Issues](https://github.com/akadenia/AkadeniaLogger/issues)
 </div>
 
@@ -58,6 +58,12 @@ logger.error('An error occurred');
 
 // Logging with extra data
 logger.debug('User action', { extraData: { userId: '123', action: 'click' } });
+logger.error('Failed to fetch data',{extraData: { userId: '1234', response: {
+  status: 500,
+  statusText: "Internal Server Error",
+  message: "Server error",
+  data: { errorCode: "ERR_500" },
+}}})
 
 // Exception logging
 try {
