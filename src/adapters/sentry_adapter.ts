@@ -1,5 +1,6 @@
 import { Severity, ILogger, Options } from "../logger"
 import { Client, Scope, SeverityLevel } from "@sentry/types"
+import { AkadeniaApiResponse } from "@akadenia/api"
 
 export enum SentrySeverity {
   Debug = "debug",
@@ -25,9 +26,7 @@ export class SentryAdapter implements ILogger {
     this.minimumLogLevel = minimumLogLevel
   }
 
-  private trimAndProcessResponseData(extraData: any): any {
-    const { response, ...otherFields } = extraData
-
+  private trimResponse(response: AkadeniaApiResponse): any {
     // Trim response to only essential fields: status, statusText, message, data
     const trimmedResponse: any = {}
     if (response && typeof response === "object") {
@@ -37,13 +36,19 @@ export class SentryAdapter implements ILogger {
       if (response.data !== undefined) trimmedResponse.data = response.data
     }
 
-    // Accommodate other fields first before response (Sentry has 16kb limit)
-    const processedData: any = {}
-    Object.assign(processedData, otherFields)
+    return trimmedResponse
+  }
 
-    // Add trimmed response last
-    if (Object.keys(trimmedResponse).length > 0) {
-      processedData.response = trimmedResponse
+  private processData(extraData: any, response?: AkadeniaApiResponse): any {
+    // Accommodate extraData first (Sentry has 16kb limit)
+    const processedData: any = { ...(extraData || {}) }
+
+    // Add trimmed response if provided
+    if (response && typeof response === "object") {
+      const trimmedResponse = this.trimResponse(response)
+      if (Object.keys(trimmedResponse).length > 0) {
+        processedData.response = trimmedResponse
+      }
     }
 
     return processedData
@@ -85,15 +90,17 @@ export class SentryAdapter implements ILogger {
 
   private captureMessage(message: string, severity: SeverityLevel, options?: Options) {
     this.Sentry.withScope((scope: Scope) => {
-      if (options?.extraData) {
-        const extraData = { ...options.extraData }
+      if (options?.extraData || options?.response) {
+        // Process extraData and response together
+        const processedData = this.processData(options.extraData, options.response)
 
-        if (!extraData.response || typeof extraData.response !== "object" || !Object.keys(extraData.response).length) {
-          scope.setExtra("extra-data", JSON.stringify(extraData, null, 4))
-        } else {
-          const processedData = this.trimAndProcessResponseData(extraData)
+        // Check if we have a response that needs truncation
+        if (options.response && typeof options.response === "object" && Object.keys(options.response).length > 0) {
           const dataString = this.truncateDataIfNeeded(processedData)
           scope.setExtra("extra-data", dataString)
+        } else {
+          // No response, just stringify extraData
+          scope.setExtra("extra-data", JSON.stringify(processedData, null, 4))
         }
       }
 

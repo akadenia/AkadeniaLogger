@@ -1,3 +1,5 @@
+import { AkadeniaApiResponse } from "@akadenia/api"
+
 export enum Severity {
   Trace = 1,
   Debug,
@@ -9,6 +11,7 @@ export enum Severity {
 export type Options = {
   forceConsole?: boolean
   extraData?: any
+  response?: AkadeniaApiResponse
   exception?: Error
   signozPayload?: any
 }

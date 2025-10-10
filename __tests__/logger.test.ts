@@ -180,43 +180,45 @@ describe("Logger namespace test", () => {
 })
 
 describe("Logger tests with response implementation", () => {
-  it("should pass response to extraData", () => {
+  it("should pass response as separate parameter", () => {
     const logger = new Logger({ consoleEnabled: true })
     const consoleErrorSpy = jest.spyOn(console, "error")
 
     const message = "Test with response"
-    const extraData = {
-      response: {
-        status: 404,
-        statusText: "Not Found",
-        data: { error: "Details" },
-      },
-    }
+    const response = {
+      success: false,
+      message: "Not Found",
+      status: 404,
+      statusText: "Not Found",
+      data: { error: "Details" },
+    } as any
 
-    logger.error(message, { extraData })
+    logger.error(message, { response })
 
     expect(consoleErrorSpy).toHaveBeenCalled()
-    expect(consoleErrorSpy).toHaveBeenCalledWith(message, { extraData })
+    // Console doesn't log response, so it should just log the message
+    expect(consoleErrorSpy).toHaveBeenCalledWith(message)
   })
 
-  it("should pass response to extraData with other fields", () => {
+  it("should pass response with extraData", () => {
     const logger = new Logger({ consoleEnabled: true })
     const consoleErrorSpy = jest.spyOn(console, "error")
 
     const message = "Test with response and other fields"
+    const response = {
+      success: false,
+      message: "Server error",
+      status: 500,
+      statusText: "Internal Server Error",
+      data: { errorCode: "ERR_500" },
+    } as any
     const extraData = {
-      response: {
-        status: 500,
-        statusText: "Internal Server Error",
-        message: "Server error",
-        data: { errorCode: "ERR_500" },
-      },
       userId: "12345",
       timestamp: Date.now(),
       action: "fetch_data",
     }
 
-    logger.error(message, { extraData })
+    logger.error(message, { extraData, response })
 
     expect(consoleErrorSpy).toHaveBeenCalled()
     expect(consoleErrorSpy).toHaveBeenCalledWith(message, { extraData })
@@ -228,22 +230,24 @@ describe("Logger tests with response implementation", () => {
 
     const message = "Test with large response"
     const largeData = "x".repeat(20 * 1024) // 20kb of data
+    const response = {
+      success: false,
+      message: "Internal Server Error",
+      status: 500,
+      statusText: "Internal Server Error",
+      data: largeData,
+    } as any
     const extraData = {
-      response: {
-        status: 500,
-        statusText: "Internal Server Error",
-        data: largeData,
-      },
       userId: "12345",
     }
 
-    logger.error(message, { extraData })
+    logger.error(message, { extraData, response })
 
     expect(consoleErrorSpy).toHaveBeenCalled()
     expect(consoleErrorSpy).toHaveBeenCalledWith(message, { extraData })
 
     // Verify the data size is indeed large (>16kb)
-    const dataSize = new TextEncoder().encode(extraData.response.data).length
+    const dataSize = new TextEncoder().encode(response.data).length
     expect(dataSize).toBeGreaterThan(16 * 1024)
   })
 })
