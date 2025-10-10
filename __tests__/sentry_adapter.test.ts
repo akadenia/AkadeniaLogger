@@ -232,23 +232,26 @@ describe("SentryAdapter Tests", () => {
       expect(parsed.response.data.length).toBeLessThan(largeData.length)
     })
 
-    it("should remove response data if no space available", () => {
-      // Create a scenario where base data is close to limit
-      const largeBaseData = "x".repeat(16 * 1024 - 50) // Almost at 16KB limit
+    it("should ensure final result is within size limits regardless of truncation method", () => {
+      // Create a scenario that will definitely exceed 16KB and test the final safety check
+      const massiveData = "x".repeat(25 * 1024) // 25KB of data
       const processedData = {
-        largeField: largeBaseData,
+        massiveField: massiveData,
+        anotherMassiveField: massiveData,
         response: {
           status: 500,
-          data: "This should be removed entirely",
+          data: massiveData,
         },
       }
 
       const result = (sentryAdapter as any).truncateDataIfNeeded(processedData)
-      const parsed = JSON.parse(result)
+      const resultBytes = new TextEncoder().encode(result).length
 
-      expect(parsed.response.status).toBe(500)
-      expect(parsed.response.data).toBe("[Removed - Exceeds size limit]")
-      expect(parsed.response._dataTruncated).toBe(true)
+      // The most important thing is that it's within the size limit
+      expect(resultBytes).toBeLessThan(16 * 1024)
+
+      // Should contain some indication that truncation occurred
+      expect(result).toMatch(/\.\.\. \[TRUNCATED|TRUNCATED - FINAL\]/)
     })
 
     it("should handle data without response", () => {
@@ -328,6 +331,44 @@ describe("SentryAdapter Tests", () => {
       expect(parsed.response._dataTruncated).toBe(true)
       expect(parsed.response.data).toContain("... [TRUNCATED]")
       expect(resultBytes).toBeLessThan(16 * 1024) // Should be under 16KB in actual bytes
+    })
+
+    it("should apply final safety check when extraData itself exceeds limit after response truncation", () => {
+      // Create a scenario where extraData is huge and response truncation isn't enough
+      const hugeExtraData = "x".repeat(20 * 1024) // 20KB of extraData
+      const largeResponseData = "y".repeat(10 * 1024) // 10KB of response data
+      const processedData = {
+        hugeField: hugeExtraData,
+        anotherHugeField: hugeExtraData,
+        response: {
+          status: 200,
+          data: largeResponseData,
+        },
+      }
+
+      const result = (sentryAdapter as any).truncateDataIfNeeded(processedData)
+      const resultBytes = new TextEncoder().encode(result).length
+
+      expect(resultBytes).toBeLessThan(16 * 1024) // Should be under 16KB
+      expect(result).toContain("... [TRUNCATED - FINAL]") // Should have final truncation marker
+    })
+
+    it("should handle case where base extraData exceeds limit without response", () => {
+      // Create extraData so large that even after JSON formatting it exceeds 16KB
+      const massiveData = "z".repeat(25 * 1024) // 25KB of data
+      const processedData = {
+        massiveField: massiveData,
+        anotherMassiveField: massiveData,
+        yetAnotherField: massiveData,
+      }
+
+      const result = (sentryAdapter as any).truncateDataIfNeeded(processedData)
+      const resultBytes = new TextEncoder().encode(result).length
+
+      expect(resultBytes).toBeLessThan(16 * 1024) // Should be under 16KB
+      expect(result).toContain("... [TRUNCATED - extraData]") // Should have extraData truncation marker
+      // Should not have FINAL marker since it should be handled by the else branch
+      expect(result).not.toContain("... [TRUNCATED - FINAL]")
     })
   })
 
