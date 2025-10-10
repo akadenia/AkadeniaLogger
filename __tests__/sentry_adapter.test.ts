@@ -50,12 +50,12 @@ describe("SentryAdapter Tests", () => {
     })
 
     it("should handle BigInt values", () => {
-      const obj = { id: BigInt(1234567890123456789), name: "Test" }
+      const obj = { id: BigInt("1234567890123456789"), name: "Test" }
       const result = (sentryAdapter as any).safeStringify(obj, 2)
 
       expect(result).toContain('"id": "')
       expect(result).toContain('"name": "Test"')
-      expect(result).toContain("1234567890123456") // Check for partial BigInt value
+      expect(result).toContain('"id": "1234567890123456789"') // Check for exact BigInt string
     })
 
     it("should return fallback string on complete failure", () => {
