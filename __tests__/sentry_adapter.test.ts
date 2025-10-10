@@ -59,9 +59,8 @@ describe("SentryAdapter Tests", () => {
     })
 
     it("should return fallback string on complete failure", () => {
-      // Mock JSON.stringify to throw an error
-      const originalStringify = JSON.stringify
-      ;(JSON as any).stringify = jest.fn().mockImplementation(() => {
+      // Mock JSON.stringify to throw an error using jest.spyOn for automatic restoration
+      const stringifySpy = jest.spyOn(JSON, "stringify").mockImplementation(() => {
         throw new Error("Complete failure")
       })
 
@@ -70,8 +69,8 @@ describe("SentryAdapter Tests", () => {
 
       expect(result).toBe("[Unserializable extra-data]")
 
-      // Restore original JSON.stringify
-      JSON.stringify = originalStringify
+      // Automatically restore original JSON.stringify
+      stringifySpy.mockRestore()
     })
   })
 
