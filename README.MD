@@ -1,12 +1,12 @@
 <div align="center">
-  <img src="https://cdn.akadenia.com/images/akadenia-webp/logo/horizontal-logo.svg" alt="Akadenia" width="200" style="filter: drop-shadow(0 0 1px rgba(0,0,0,1)) drop-shadow(0 0 1px rgba(255,255,255,1));" />
-
-  # @akadenia/logger
-
-  [![npm version](https://badge.fury.io/js/%40akadenia%2Flogger.svg)](https://badge.fury.io/js/%40akadenia%2Flogger)
-  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-  [![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg)](http://www.typescriptlang.org/)
-
+  <img src="https://cdn.akadenia.com/images/akadenia-webp/logo/horizontal-logo.svg" alt="Akadenia" width="200" />
+  
+  ## @akadenia/logger
+  
+  <img src="https://cdn.akadenia.com/images/badges/npm-version-logger.svg" alt="npm version" />
+  <img src="https://cdn.akadenia.com/images/badges/license-mit.svg" alt="License: MIT" />
+  <img src="https://cdn.akadenia.com/images/badges/typescript.svg" alt="TypeScript" />
+  
   A flexible and extensible logging library for TypeScript applications, part of the Akadenia ecosystem.
 
   [Documentation](https://akadenia.com/packages/akadenia-logger) • [GitHub](https://github.com/akadenia/AkadeniaLogger) • [Issues](https://github.com/akadenia/AkadeniaLogger/issues)
@@ -208,7 +208,7 @@ npm test
 
 We follow [Conventional Commits](https://www.conventionalcommits.org/) for our semantic release process. **We prefer commit messages to include a scope in parentheses** for better categorization and changelog generation.
 
-#### Preferred Format
+### Preferred Format
 ```
 type(scope): description
 
@@ -217,22 +217,22 @@ type(scope): description
 [optional footer]
 ```
 
-#### Examples
+### Examples
 ```bash
-# ✅ Preferred - with scope
+## ✅ Preferred - with scope
 feat(adapters): add new Sentry adapter configuration
 fix(logger): resolve exception handling issue
 docs(readme): add troubleshooting section
 chore(deps): update dependencies
 
-# ❌ Less preferred - without scope
+## ❌ Less preferred - without scope
 feat: add new Sentry adapter configuration
 fix: resolve exception handling issue
 docs: add troubleshooting section
 chore: update dependencies
 ```
 
-#### Common Scopes
+### Common Scopes
 - `logger` - Core logger functionality
 - `adapters` - Adapter implementations
 - `events` - Predefined event handling
@@ -242,7 +242,7 @@ chore: update dependencies
 - `build` - Build and build tooling
 - `ci` - CI/CD configuration
 
-#### Commit Types
+### Commit Types
 - `feat` - New features
 - `fix` - Bug fixes
 - `docs` - Documentation changes

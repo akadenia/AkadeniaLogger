@@ -1,0 +1,29 @@
+---
+description: CDN and Asset Policy - All images must use our CDN
+globs: ["**/*.md", "**/*.MD", "**/*.mdx", "**/*.MDX"]
+alwaysApply: true
+---
+
+# CDN and Asset Policy
+
+## STRICT POLICY
+All images and badges MUST be served from our CDN at `https://cdn.akadenia.com/images/`
+
+## Logo Images
+- Use: `https://cdn.akadenia.com/images/akadenia-webp/logo/horizontal-logo.svg`
+- Do NOT modify or move logo images
+
+## Badge Images
+- Use: `https://cdn.akadenia.com/images/badges/` folder structure
+- NO external services: Do not use badge.fury.io, img.shields.io, or other external image services
+
+## Badge Structure
+- npm version badges: `npm-version-{package-name}.svg`
+- License badges: `license-mit.svg` (shared)
+- TypeScript badges: `typescript.svg` (shared)
+- All badges go in: `images/badges/` folder
+
+## MDX Compatibility
+- NO style attributes: MDX does not support style attributes, remove them from all HTML elements
+- NO anchor tags: MDX has issues with `<a>` tags, avoid using them
+- Use HTML img tags: Use `<img>` tags instead of markdown image syntax for badges to maintain proper sizing
