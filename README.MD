@@ -8,7 +8,7 @@
   <img src="https://cdn.akadenia.com/images/badges/typescript.svg" alt="TypeScript" />
   
   A flexible and extensible logging library for TypeScript applications, part of the Akadenia ecosystem.
-  
+
   [Documentation](https://akadenia.com/packages/akadenia-logger) • [GitHub](https://github.com/akadenia/AkadeniaLogger) • [Issues](https://github.com/akadenia/AkadeniaLogger/issues)
 </div>
 
@@ -58,6 +58,12 @@ logger.error('An error occurred');
 
 // Logging with extra data
 logger.debug('User action', { extraData: { userId: '123', action: 'click' } });
+logger.error('Failed to fetch data',{extraData: { userId: '1234', response: {
+  status: 500,
+  statusText: "Internal Server Error",
+  message: "Server error",
+  data: { errorCode: "ERR_500" },
+}}})
 
 // Exception logging
 try {

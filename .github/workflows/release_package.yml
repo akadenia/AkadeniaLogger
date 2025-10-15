@@ -19,6 +19,8 @@ concurrency:
 
 jobs:
   release:
+    environment: production
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     permissions:
@@ -26,6 +28,13 @@ jobs:
       packages: write
       pull-requests: write
     steps:
+      - name: Load Environment Variables From 1Password
+        id: op-env
+        uses: 1password/load-secrets-action@13f58eec611f8e5db52ec16247f58c508398f3e6 # Using 3.0.0
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          GH_TOKEN: ${{vars.OP_VAULT_REF}}/GH_TOKEN
+          NPM_TOKEN: ${{vars.OP_VAULT_REF}}/NPM_TOKEN
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
@@ -35,11 +44,11 @@ jobs:
       - name: Install dependencies
         run: npm clean-install
 
-      - uses: codfish/semantic-release-action@v3
+      - uses: codfish/semantic-release-action@b621d34fabe0940f031e89b6ebfea28322892a10 # Using 3.5.0
         id: semantic
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.op-env.outputs.GH_TOKEN }}
+          NPM_TOKEN: ${{ steps.op-env.outputs.NPM_TOKEN }}
 
       - name: Release Version
         run: echo ${{ steps.semantic.outputs.release-version }}
