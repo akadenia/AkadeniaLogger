@@ -1,3 +1,19 @@
+# [2.0.0](https://github.com/akadenia/AkadeniaLogger/compare/1.7.2...2.0.0) (2025-10-15)
+
+
+### Features
+
+* **logger:** enhance logger to handle response additional data in extraData field ([#38](https://github.com/akadenia/AkadeniaLogger/issues/38)) ([4b98cc9](https://github.com/akadenia/AkadeniaLogger/commit/4b98cc999a1593cbfd6d681d935a2b926d1b52d5))
+
+
+### BREAKING CHANGES
+
+* **logger:** SentryAdapter now uses safeStringify() and byte-based truncation
+
+This ensures Sentry's 16KB limit is properly enforced and prevents log data from being truncated by sentry. 
+
+No required change to upgrade.
+
 ## [1.7.2](https://github.com/akadenia/AkadeniaLogger/compare/1.7.1...1.7.2) (2024-11-08)
 
 
