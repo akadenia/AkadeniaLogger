@@ -3,7 +3,6 @@
 
 ### Features
 
-* **logger:** enhance logger to handle response additional data in extraData field ([#37](https://github.com/akadenia/AkadeniaLogger/issues/37)) ([cc68c34](https://github.com/akadenia/AkadeniaLogger/commit/cc68c34272d7f1efa761674716387e759216143e))
 * **serializer:** add enhanced serialization ([#40](https://github.com/akadenia/AkadeniaLogger/issues/40)) ([47d993a](https://github.com/akadenia/AkadeniaLogger/commit/47d993a829191ad00b3d78085da7860a69e611ce))
 
 # [2.0.0](https://github.com/akadenia/AkadeniaLogger/compare/1.7.2...2.0.0) (2025-10-15)
