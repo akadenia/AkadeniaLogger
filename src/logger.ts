@@ -1,4 +1,5 @@
 import { AkadeniaApiResponse } from "@akadenia/api"
+import { createDetailedObjectSummary } from "./serialization"
 
 export enum Severity {
   Trace = 1,
@@ -57,6 +58,8 @@ export interface ILogger {
 }
 
 function logToConsole(logLevel: "warn" | "info" | "log" | "error" | "trace" | "debug", message: string, options?: Options) {
+  // Pass extraData as a separate object argument (not serialized)
+  // Response is not logged to console, only passed to adapters
   if (options?.extraData) {
     console[logLevel](message, { extraData: options.extraData })
   } else {
@@ -151,8 +154,12 @@ export class Logger implements ILogger {
   }
 
   exception(message: string, exception: Error, options?: Options) {
-    if (this.checkConsole(Severity.Error, options))
-      logToConsole("error", message, { ...options, extraData: { ...options?.extraData, exception: exception } })
+    if (this.checkConsole(Severity.Error, options)) {
+      // Serialize exception details for better visibility
+      const exceptionDetails = createDetailedObjectSummary(exception, "exception")
+      const enhancedMessage = `${message}\n${exceptionDetails}`
+      logToConsole("error", enhancedMessage, options)
+    }
     this.adapters.forEach((adapter) => {
       try {
         adapter.exception(message, exception, options)
