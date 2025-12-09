@@ -91,32 +91,46 @@ export class Logger implements ILogger {
     this.adapters.push(logger)
   }
 
+  sanitizeLogMessage(message: string): string {
+    return message
+      .replace(/[\r\n\t]/g, " ")
+      .split("")
+      .filter((char) => {
+        const code = char.charCodeAt(0)
+        return code >= 32 && code !== 127 && (code < 128 || code > 159)
+      })
+      .join("")
+  }
+
   trace(message: string, options?: Options) {
-    if (this.checkConsole(Severity.Trace, options)) logToConsole("trace", message, options)
+    const sanitizedMessage = this.sanitizeLogMessage(message)
+    if (this.checkConsole(Severity.Trace, options)) logToConsole("trace", sanitizedMessage, options)
 
     this.adapters.forEach((adapter) => {
       try {
-        adapter.trace(message, options)
+        adapter.trace(sanitizedMessage, options)
       } catch {} // absorb adapter errors for now!
     })
   }
 
   debug(message: string, options?: Options) {
-    if (this.checkConsole(Severity.Debug, options)) logToConsole("debug", message, options)
+    const sanitizedMessage = this.sanitizeLogMessage(message)
+    if (this.checkConsole(Severity.Debug, options)) logToConsole("debug", sanitizedMessage, options)
 
     this.adapters.forEach((adapter) => {
       try {
-        adapter.debug(message, options)
+        adapter.debug(sanitizedMessage, options)
       } catch {} // absorb adapter errors for now!
     })
   }
 
   info(message: string, options?: Options) {
-    if (this.checkConsole(Severity.Info, options)) logToConsole("info", message, options)
+    const sanitizedMessage = this.sanitizeLogMessage(message)
+    if (this.checkConsole(Severity.Info, options)) logToConsole("info", sanitizedMessage, options)
 
     this.adapters.forEach((adapter) => {
       try {
-        adapter.info(message, options)
+        adapter.info(sanitizedMessage, options)
       } catch {} // absorb adapter errors for now!
     })
   }
@@ -134,35 +148,37 @@ export class Logger implements ILogger {
   }
 
   warn(message: string, options?: Options) {
-    if (this.checkConsole(Severity.Warn, options)) logToConsole("warn", message, options)
+    const sanitizedMessage = this.sanitizeLogMessage(message)
+    if (this.checkConsole(Severity.Warn, options)) logToConsole("warn", sanitizedMessage, options)
 
     this.adapters.forEach((adapter) => {
       try {
-        adapter.warn(message, options)
+        adapter.warn(sanitizedMessage, options)
       } catch {} // absorb adapter errors for now!
     })
   }
 
   error(message: string, options?: Options) {
-    if (this.checkConsole(Severity.Error, options)) logToConsole("error", message, options)
+    const sanitizedMessage = this.sanitizeLogMessage(message)
+    if (this.checkConsole(Severity.Error, options)) logToConsole("error", sanitizedMessage, options)
 
     this.adapters.forEach((adapter) => {
       try {
-        adapter.error(message, options)
+        adapter.error(sanitizedMessage, options)
       } catch {} // absorb adapter errors for now!
     })
   }
 
   exception(message: string, exception: Error, options?: Options) {
+    const sanitizedMessage = this.sanitizeLogMessage(message)
     if (this.checkConsole(Severity.Error, options)) {
-      // Serialize exception details for better visibility
       const exceptionDetails = createDetailedObjectSummary(exception, "exception")
-      const enhancedMessage = `${message}\n${exceptionDetails}`
+      const enhancedMessage = `${sanitizedMessage}\n${exceptionDetails}`
       logToConsole("error", enhancedMessage, options)
     }
     this.adapters.forEach((adapter) => {
       try {
-        adapter.exception(message, exception, options)
+        adapter.exception(sanitizedMessage, exception, options)
       } catch {} // absorb adapter errors for now!
     })
   }

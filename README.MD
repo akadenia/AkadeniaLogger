@@ -9,7 +9,8 @@
   
   A flexible and extensible logging library for TypeScript applications, part of the Akadenia ecosystem.
 
-  [Documentation](https://akadenia.com/packages/akadenia-logger) • [GitHub](https://github.com/akadenia/AkadeniaLogger) • [Issues](https://github.com/akadenia/AkadeniaLogger/issues)
+[Documentation](https://akadenia.com/packages/akadenia-logger) • [GitHub](https://github.com/akadenia/AkadeniaLogger) • [Issues](https://github.com/akadenia/AkadeniaLogger/issues)
+
 </div>
 
 ## Features
@@ -44,32 +45,37 @@ npm install @akadenia/logger
 ## Quick Start
 
 ```typescript
-import { Logger, Severity } from '@akadenia/logger';
+import { Logger, Severity } from "@akadenia/logger"
 
 // Create a logger instance
 const logger = new Logger({
   consoleEnabled: true,
-  consoleMinimumLogLevel: Severity.Info
-});
+  consoleMinimumLogLevel: Severity.Info,
+})
 
 // Basic logging
-logger.info('Application started');
-logger.error('An error occurred');
+logger.info("Application started")
+logger.error("An error occurred")
 
 // Logging with extra data
-logger.debug('User action', { extraData: { userId: '123', action: 'click' } });
-logger.error('Failed to fetch data',{extraData: { userId: '1234', response: {
-  status: 500,
-  statusText: "Internal Server Error",
-  message: "Server error",
-  data: { errorCode: "ERR_500" },
-}}})
+logger.debug("User action", { extraData: { userId: "123", action: "click" } })
+logger.error("Failed to fetch data", {
+  extraData: {
+    userId: "1234",
+    response: {
+      status: 500,
+      statusText: "Internal Server Error",
+      message: "Server error",
+      data: { errorCode: "ERR_500" },
+    },
+  },
+})
 
 // Exception logging
 try {
   // Some code that might throw
 } catch (error) {
-  logger.exception('Failed to process request', error as Error);
+  logger.exception("Failed to process request", error as Error)
 }
 ```
 
@@ -79,8 +85,8 @@ The logger can be configured with the following options:
 
 ```typescript
 type Config = {
-  consoleEnabled?: boolean;      // Enable/disable console logging
-  consoleMinimumLogLevel?: Severity;  // Minimum level for console output
+  consoleEnabled?: boolean // Enable/disable console logging
+  consoleMinimumLogLevel?: Severity // Minimum level for console output
 }
 ```
 
@@ -103,85 +109,104 @@ enum PredefinedLogEvents {
   Login = "LOGIN",
   Share = "SHARE",
   AppOpen = "APP_OPEN",
-  Search = "SEARCH"
+  Search = "SEARCH",
 }
 ```
 
 Example usage:
+
 ```typescript
 logger.predefinedEvent({
   type: PredefinedLogEvents.Login,
-  extraData: { userId: '123' }
-});
+  extraData: { userId: "123" },
+})
 
 logger.predefinedEvent({
   type: PredefinedLogEvents.Search,
-  extraData: { searchTerm: 'query' }
-});
+  extraData: { searchTerm: "query" },
+})
 ```
 
 ## Adapters
 
 ### Sentry Adapter
+
 For error tracking and monitoring:
+
 ```typescript
-import { SentryAdapter } from '@akadenia/logger/adapters';
+import { SentryAdapter } from "@akadenia/logger/adapters"
 
 const sentryAdapter = new SentryAdapter({
-  dsn: 'your-sentry-dsn'
-});
-logger.addLogger(sentryAdapter);
+  dsn: "your-sentry-dsn",
+})
+logger.addLogger(sentryAdapter)
 ```
 
 ### SignOz Adapter
-For application monitoring:
-```typescript
-import { SignOzAdapter } from '@akadenia/logger/adapters';
 
-const signOzAdapter = new SignOzAdapter({
-  // SignOz configuration
-});
-logger.addLogger(signOzAdapter);
+For application monitoring:
+
+```typescript
+import { SignozAdapter } from "@akadenia/logger/adapters"
+import { Severity } from "@akadenia/logger"
+
+const signozAdapter = new SignozAdapter("http://collector:4318/v1/logs", Severity.Info)
+logger.addLogger(signozAdapter)
+```
+
+You can also use a custom endpoint:
+
+```typescript
+const signozAdapter = new SignozAdapter("https://signoz.example.com:4318/custom/route", Severity.Debug)
+logger.addLogger(signozAdapter)
 ```
 
 ### Azure Functions Adapter
-For Azure Functions logging:
-```typescript
-import { AzureFunctionsAdapter } from '@akadenia/logger/adapters';
 
-const azureAdapter = new AzureFunctionsAdapter(context);
-logger.addLogger(azureAdapter);
+For Azure Functions logging:
+
+```typescript
+import { AzureFunctionsAdapter } from "@akadenia/logger/adapters"
+
+const azureAdapter = new AzureFunctionsAdapter(context)
+logger.addLogger(azureAdapter)
 ```
 
 ### Firebase Adapter
+
 For Firebase logging:
+
 ```typescript
-import { FirebaseAdapter } from '@akadenia/logger/adapters';
+import { FirebaseAdapter } from "@akadenia/logger/adapters"
 
 const firebaseAdapter = new FirebaseAdapter({
   // Firebase configuration
-});
-logger.addLogger(firebaseAdapter);
+})
+logger.addLogger(firebaseAdapter)
 ```
 
 ## Development
 
 ### Building
+
 ```bash
 npm run build
 ```
 
 ### Testing
+
 ```bash
 npm test
 ```
 
 ### Formatting
+
 ```bash
 npm run format
 ```
 
 ### Linting
+
 ```bash
 npm run lint
 ```
@@ -209,6 +234,7 @@ npm test
 We follow [Conventional Commits](https://www.conventionalcommits.org/) for our semantic release process. **We prefer commit messages to include a scope in parentheses** for better categorization and changelog generation.
 
 ### Preferred Format
+
 ```
 type(scope): description
 
@@ -218,6 +244,7 @@ type(scope): description
 ```
 
 ### Examples
+
 ```bash
 ## ✅ Preferred - with scope
 feat(adapters): add new Sentry adapter configuration
@@ -233,6 +260,7 @@ chore: update dependencies
 ```
 
 ### Common Scopes
+
 - `logger` - Core logger functionality
 - `adapters` - Adapter implementations
 - `events` - Predefined event handling
@@ -243,6 +271,7 @@ chore: update dependencies
 - `ci` - CI/CD configuration
 
 ### Commit Types
+
 - `feat` - New features
 - `fix` - Bug fixes
 - `docs` - Documentation changes
