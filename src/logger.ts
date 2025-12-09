@@ -91,7 +91,7 @@ export class Logger implements ILogger {
     this.adapters.push(logger)
   }
 
-  private sanitizeLogMessage(message: string): string {
+  sanitizeLogMessage(message: string): string {
     return message
       .replace(/[\r\n\t]/g, " ")
       .split("")

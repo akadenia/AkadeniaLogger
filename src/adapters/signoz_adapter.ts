@@ -10,16 +10,35 @@ export enum SignozSeverity {
   Fatal = "fatal",
 }
 
-export interface SignozLog {
-  timestamp?: number
-  trace_id?: string
-  span_id?: string
-  trace_flags?: number
-  severity_text: string
-  severity_number?: number
-  attributes?: Record<string, any>
-  resources?: Record<string, any>
-  message: string
+export interface SignozLogBody {
+  stringValue: string
+}
+
+export interface SignozLogRecord {
+  timeUnixNano?: string
+  traceId?: string
+  spanId?: string
+  traceFlags?: number
+  severityText: string
+  severityNumber?: number
+  body: SignozLogBody
+  attributes?: Array<{
+    key: string
+    value: { stringValue?: string; intValue?: string; doubleValue?: string; boolValue?: boolean }
+  }>
+}
+
+export interface SignozResourceLog {
+  resource?: {
+    attributes?: Array<{ key: string; value: { stringValue?: string } }>
+  }
+  scopeLogs: Array<{
+    logRecords: SignozLogRecord[]
+  }>
+}
+
+export interface SignozOTLPPayload {
+  resourceLogs: SignozResourceLog[]
 }
 
 export class SignozAdapter implements ILogger {
@@ -31,10 +50,10 @@ export class SignozAdapter implements ILogger {
 
   api: AxiosApiClient
 
-  constructor(host: string, port: number = 8082, minimumLogLevel = Severity.Debug) {
+  constructor(url: string | URL, minimumLogLevel = Severity.Debug) {
     this.minimumLogLevel = minimumLogLevel
 
-    this.url = new URL(`http://${host}:${port}`)
+    this.url = typeof url === "string" ? new URL(url) : url
 
     this.api = new AxiosApiClient({
       baseUrl: this.url.toString(),
@@ -44,26 +63,85 @@ export class SignozAdapter implements ILogger {
     })
   }
 
-  private async captureMessage(message: string, severity: SignozSeverity, options?: Options) {
-    const payload: SignozLog[] = [
-      {
-        trace_id: options?.signozPayload?.trace_id,
-        span_id: options?.signozPayload?.span_id,
-        trace_flags: options?.signozPayload?.trace_flags,
-        severity_text: severity,
-        severity_number: options?.signozPayload?.severity_number,
-        attributes: options?.signozPayload?.attributes,
-        resources: options?.signozPayload?.resources,
-        message: message,
-      },
-    ]
+  private convertAttributesToOTLP(
+    attrs: Record<string, any>,
+  ): Array<{ key: string; value: { stringValue?: string; intValue?: string; doubleValue?: string; boolValue?: boolean } }> {
+    return Object.entries(attrs).map(([key, value]) => {
+      if (typeof value === "string") {
+        return { key, value: { stringValue: value } }
+      } else if (typeof value === "number") {
+        if (Number.isInteger(value)) {
+          return { key, value: { intValue: value.toString() } }
+        } else {
+          return { key, value: { doubleValue: value.toString() } }
+        }
+      } else if (typeof value === "boolean") {
+        return { key, value: { boolValue: value } }
+      } else {
+        return { key, value: { stringValue: JSON.stringify(value) } }
+      }
+    })
+  }
 
-    const response = await this.api.post("", payload)
-    if (!response.success) {
-      console.log(`${response.message}: ${response.data}`)
+  private async captureMessage(message: string, severity: SignozSeverity, options?: Options) {
+    const attributes: Record<string, any> = {}
+
+    if (options?.extraData) {
+      Object.assign(attributes, options.extraData)
+    }
+
+    if (options?.response) {
+      Object.assign(attributes, options.response)
+    }
+
+    if (options?.signozPayload?.attributes) {
+      Object.assign(attributes, options.signozPayload.attributes)
+    }
+
+    const now = Date.now()
+    const timeUnixNano = (now * 1000000).toString()
+
+    const logRecord: SignozLogRecord = {
+      timeUnixNano,
+      severityText: severity,
+      traceId: options?.signozPayload?.trace_id,
+      spanId: options?.signozPayload?.span_id,
+      traceFlags: options?.signozPayload?.trace_flags,
+      severityNumber: options?.signozPayload?.severity_number,
+      attributes: this.convertAttributesToOTLP(attributes),
+      body: {
+        stringValue: message,
+      },
+    }
+
+    const resourceAttributes: Array<{ key: string; value: { stringValue: string } }> = []
+    if (options?.signozPayload?.resources) {
+      Object.entries(options.signozPayload.resources).forEach(([key, value]) => {
+        resourceAttributes.push({ key, value: { stringValue: String(value) } })
+      })
+    }
+
+    const payload: SignozOTLPPayload = {
+      resourceLogs: [
+        {
+          resource: resourceAttributes.length > 0 ? { attributes: resourceAttributes } : undefined,
+          scopeLogs: [
+            {
+              logRecords: [logRecord],
+            },
+          ],
+        },
+      ],
+    }
+
+    const apiResponse = await this.api.post("", payload)
+    if (!apiResponse.success) {
+      console.log(`${apiResponse.message}: ${apiResponse.data}`)
 
       return false
     }
+
+    console.log({ responseData: apiResponse.data })
 
     return true
   }
