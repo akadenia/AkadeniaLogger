@@ -103,6 +103,22 @@ export class SignozAdapter implements ILogger {
       Object.assign(attributes, options.signozPayload.attributes)
     }
 
+    if (options?.exception) {
+      if (options.exception instanceof Error) {
+        attributes.exception_message = options.exception.message
+        if (options.exception.stack) {
+          attributes.exception_stack = options.exception.stack
+        }
+        if (options.exception.name) {
+          attributes.exception_name = options.exception.name
+        }
+      } else if (typeof options.exception === "string") {
+        attributes.exception = options.exception
+      } else if (typeof options.exception === "object") {
+        Object.assign(attributes, options.exception)
+      }
+    }
+
     const now = Date.now()
     const timeUnixNano = (BigInt(now) * BigInt(1000000)).toString()
 
@@ -124,17 +140,20 @@ export class SignozAdapter implements ILogger {
       value: { stringValue?: string; intValue?: string; doubleValue?: string; boolValue?: boolean }
     }> = options?.signozPayload?.resources ? this.convertAttributesToOTLP(options.signozPayload.resources) : []
 
-    const payload: SignozOTLPPayload = {
-      resourceLogs: [
+    const resourceLog: SignozResourceLog = {
+      scopeLogs: [
         {
-          resource: resourceAttributes.length > 0 ? { attributes: resourceAttributes } : undefined,
-          scopeLogs: [
-            {
-              logRecords: [logRecord],
-            },
-          ],
+          logRecords: [logRecord],
         },
       ],
+    }
+
+    if (resourceAttributes.length > 0) {
+      resourceLog.resource = { attributes: resourceAttributes }
+    }
+
+    const payload: SignozOTLPPayload = {
+      resourceLogs: [resourceLog],
     }
 
     const apiResponse = await this.api.post("", payload)

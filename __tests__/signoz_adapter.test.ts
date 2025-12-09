@@ -221,6 +221,7 @@ describe("SignozAdapter Tests", () => {
 
     it("should post exception logs as fatal", async () => {
       const error = new Error("Test error")
+      error.stack = "Error: Test error\n    at test.js:1:1"
       await signozAdapter.exception("Exception message", error)
 
       expect(mockApiClient.post).toHaveBeenCalledWith("", {
@@ -232,6 +233,20 @@ describe("SignozAdapter Tests", () => {
                   expect.objectContaining({
                     severityText: SignozSeverity.Fatal,
                     body: { stringValue: "Exception message" },
+                    attributes: expect.arrayContaining([
+                      expect.objectContaining({
+                        key: "exception_message",
+                        value: { stringValue: "Test error" },
+                      }),
+                      expect.objectContaining({
+                        key: "exception_stack",
+                        value: { stringValue: "Error: Test error\n    at test.js:1:1" },
+                      }),
+                      expect.objectContaining({
+                        key: "exception_name",
+                        value: { stringValue: "Error" },
+                      }),
+                    ]),
                   }),
                 ],
               },
@@ -290,6 +305,20 @@ describe("SignozAdapter Tests", () => {
           },
         ],
       })
+    })
+
+    it("should omit resource field when no resources are provided", async () => {
+      await signozAdapter.info("Test message", {
+        signozPayload: {
+          trace_id: "trace-123",
+          attributes: { key: "value" },
+        },
+      })
+
+      const callArgs = mockApiClient.post.mock.calls[0]
+      const payload = callArgs[1]
+      expect(payload.resourceLogs[0]).not.toHaveProperty("resource")
+      expect(payload.resourceLogs[0]).toHaveProperty("scopeLogs")
     })
   })
 
@@ -350,6 +379,136 @@ describe("SignozAdapter Tests", () => {
           },
         ],
       })
+    })
+  })
+
+  describe("Exception Handling", () => {
+    beforeEach(() => {
+      signozAdapter = new SignozAdapter("http://collector:4318/v1/logs", Severity.Debug)
+    })
+
+    it("should include exception details when exception is an Error", async () => {
+      const error = new Error("Test error message")
+      error.stack = "Error: Test error message\n    at test.js:1:1"
+      error.name = "CustomError"
+
+      await signozAdapter.info("Test message", { exception: error })
+
+      expect(mockApiClient.post).toHaveBeenCalledWith("", {
+        resourceLogs: [
+          {
+            scopeLogs: [
+              {
+                logRecords: [
+                  expect.objectContaining({
+                    attributes: expect.arrayContaining([
+                      expect.objectContaining({
+                        key: "exception_message",
+                        value: { stringValue: "Test error message" },
+                      }),
+                      expect.objectContaining({
+                        key: "exception_stack",
+                        value: { stringValue: "Error: Test error message\n    at test.js:1:1" },
+                      }),
+                      expect.objectContaining({
+                        key: "exception_name",
+                        value: { stringValue: "CustomError" },
+                      }),
+                    ]),
+                  }),
+                ],
+              },
+            ],
+          },
+        ],
+      })
+    })
+
+    it("should include exception as string when exception is a string", async () => {
+      await signozAdapter.info("Test message", { exception: "String error" as any })
+
+      expect(mockApiClient.post).toHaveBeenCalledWith("", {
+        resourceLogs: [
+          {
+            scopeLogs: [
+              {
+                logRecords: [
+                  expect.objectContaining({
+                    attributes: expect.arrayContaining([
+                      expect.objectContaining({
+                        key: "exception",
+                        value: { stringValue: "String error" },
+                      }),
+                    ]),
+                  }),
+                ],
+              },
+            ],
+          },
+        ],
+      })
+    })
+
+    it("should flatten exception object when exception is an object", async () => {
+      await signozAdapter.info("Test message", { exception: { code: 500, type: "server" } as any })
+
+      expect(mockApiClient.post).toHaveBeenCalledWith("", {
+        resourceLogs: [
+          {
+            scopeLogs: [
+              {
+                logRecords: [
+                  expect.objectContaining({
+                    attributes: expect.arrayContaining([
+                      expect.objectContaining({
+                        key: "code",
+                        value: { intValue: "500" },
+                      }),
+                      expect.objectContaining({
+                        key: "type",
+                        value: { stringValue: "server" },
+                      }),
+                    ]),
+                  }),
+                ],
+              },
+            ],
+          },
+        ],
+      })
+    })
+
+    it("should handle Error without stack trace", async () => {
+      const error = new Error("Error without stack")
+      delete (error as any).stack
+
+      await signozAdapter.info("Test message", { exception: error })
+
+      expect(mockApiClient.post).toHaveBeenCalledWith("", {
+        resourceLogs: [
+          {
+            scopeLogs: [
+              {
+                logRecords: [
+                  expect.objectContaining({
+                    attributes: expect.arrayContaining([
+                      expect.objectContaining({
+                        key: "exception_message",
+                        value: { stringValue: "Error without stack" },
+                      }),
+                    ]),
+                  }),
+                ],
+              },
+            ],
+          },
+        ],
+      })
+
+      const callArgs = mockApiClient.post.mock.calls[0]
+      const payload = callArgs[1]
+      const attributes = payload.resourceLogs[0].scopeLogs[0].logRecords[0].attributes
+      expect(attributes.find((attr: any) => attr.key === "exception_stack")).toBeUndefined()
     })
   })
 
