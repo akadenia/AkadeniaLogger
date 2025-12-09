@@ -1,3 +1,10 @@
+# [3.1.0](https://github.com/akadenia/AkadeniaLogger/compare/3.0.0...3.1.0) (2025-12-09)
+
+
+### Features
+
+* **security:** implement message sanitization in logger and signoz adapter udpates ([#43](https://github.com/akadenia/AkadeniaLogger/issues/43)) ([5cf4cab](https://github.com/akadenia/AkadeniaLogger/commit/5cf4cab52dc24e2d4c01451b987a92a775f84894))
+
 # [3.0.0](https://github.com/akadenia/AkadeniaLogger/compare/2.0.0...3.0.0) (2025-11-10)
 
 
