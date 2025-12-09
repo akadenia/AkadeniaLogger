@@ -136,7 +136,7 @@ export class SignozAdapter implements ILogger {
 
     const apiResponse = await this.api.post("", payload)
     if (!apiResponse.success) {
-      console.log(`${apiResponse.message}: ${apiResponse.data}`)
+      console.debug(`${apiResponse.message}: ${apiResponse.data}`)
 
       return false
     }
