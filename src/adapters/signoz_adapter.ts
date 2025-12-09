@@ -99,7 +99,7 @@ export class SignozAdapter implements ILogger {
     }
 
     const now = Date.now()
-    const timeUnixNano = (now * 1000000).toString()
+    const timeUnixNano = (BigInt(now) * BigInt(1000000)).toString()
 
     const logRecord: SignozLogRecord = {
       timeUnixNano,
@@ -140,8 +140,6 @@ export class SignozAdapter implements ILogger {
 
       return false
     }
-
-    console.log({ responseData: apiResponse.data })
 
     return true
   }
