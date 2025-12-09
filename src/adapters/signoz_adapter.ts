@@ -80,6 +80,8 @@ export class SignozAdapter implements ILogger {
         }
       } else if (typeof value === "boolean") {
         return { key, value: { boolValue: value } }
+      } else if (value === null || value === undefined) {
+        return { key, value: { stringValue: "" } }
       } else {
         return { key, value: { stringValue: JSON.stringify(value) } }
       }

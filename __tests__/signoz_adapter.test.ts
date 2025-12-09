@@ -293,6 +293,66 @@ describe("SignozAdapter Tests", () => {
     })
   })
 
+  describe("Attribute Value Conversion", () => {
+    beforeEach(() => {
+      signozAdapter = new SignozAdapter("http://collector:4318/v1/logs", Severity.Debug)
+    })
+
+    it("should convert null values to empty string", async () => {
+      await signozAdapter.info("Test message", {
+        extraData: { nullValue: null },
+      })
+
+      expect(mockApiClient.post).toHaveBeenCalledWith("", {
+        resourceLogs: [
+          {
+            scopeLogs: [
+              {
+                logRecords: [
+                  expect.objectContaining({
+                    attributes: expect.arrayContaining([
+                      expect.objectContaining({
+                        key: "nullValue",
+                        value: { stringValue: "" },
+                      }),
+                    ]),
+                  }),
+                ],
+              },
+            ],
+          },
+        ],
+      })
+    })
+
+    it("should convert undefined values to empty string", async () => {
+      await signozAdapter.info("Test message", {
+        extraData: { undefinedValue: undefined },
+      })
+
+      expect(mockApiClient.post).toHaveBeenCalledWith("", {
+        resourceLogs: [
+          {
+            scopeLogs: [
+              {
+                logRecords: [
+                  expect.objectContaining({
+                    attributes: expect.arrayContaining([
+                      expect.objectContaining({
+                        key: "undefinedValue",
+                        value: { stringValue: "" },
+                      }),
+                    ]),
+                  }),
+                ],
+              },
+            ],
+          },
+        ],
+      })
+    })
+  })
+
   describe("API Error Handling", () => {
     beforeEach(() => {
       signozAdapter = new SignozAdapter("http://collector:4318/v1/logs", Severity.Debug)
