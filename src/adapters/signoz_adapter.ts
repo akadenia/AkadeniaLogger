@@ -30,7 +30,10 @@ export interface SignozLogRecord {
 
 export interface SignozResourceLog {
   resource?: {
-    attributes?: Array<{ key: string; value: { stringValue?: string } }>
+    attributes?: Array<{
+      key: string
+      value: { stringValue?: string; intValue?: string; doubleValue?: string; boolValue?: boolean }
+    }>
   }
   scopeLogs: Array<{
     logRecords: SignozLogRecord[]
@@ -114,12 +117,10 @@ export class SignozAdapter implements ILogger {
       },
     }
 
-    const resourceAttributes: Array<{ key: string; value: { stringValue: string } }> = []
-    if (options?.signozPayload?.resources) {
-      Object.entries(options.signozPayload.resources).forEach(([key, value]) => {
-        resourceAttributes.push({ key, value: { stringValue: String(value) } })
-      })
-    }
+    const resourceAttributes: Array<{
+      key: string
+      value: { stringValue?: string; intValue?: string; doubleValue?: string; boolValue?: boolean }
+    }> = options?.signozPayload?.resources ? this.convertAttributesToOTLP(options.signozPayload.resources) : []
 
     const payload: SignozOTLPPayload = {
       resourceLogs: [

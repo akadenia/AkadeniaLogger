@@ -296,11 +296,11 @@ describe("SignozAdapter Tests", () => {
   describe("API Error Handling", () => {
     beforeEach(() => {
       signozAdapter = new SignozAdapter("http://collector:4318/v1/logs", Severity.Debug)
-      jest.spyOn(console, "log").mockImplementation(() => {})
+      jest.spyOn(console, "debug").mockImplementation(() => {})
     })
 
     afterEach(() => {
-      ;(console.log as jest.Mock).mockRestore()
+      ;(console.debug as jest.Mock).mockRestore()
     })
 
     it("should log error when API call fails", async () => {
@@ -313,7 +313,7 @@ describe("SignozAdapter Tests", () => {
       const result = await (signozAdapter as any).captureMessage("Test", SignozSeverity.Info)
 
       expect(result).toBe(false)
-      expect(console.log).toHaveBeenCalledWith("API Error: Error details")
+      expect(console.debug).toHaveBeenCalledWith("API Error: Error details")
     })
 
     it("should return true when API call succeeds", async () => {
