@@ -1,12 +1,12 @@
 version: 2.1
 
 orbs:
-  node: circleci/node@7
+  node: circleci/node@7.2.1
 
 jobs:
   build_lint_test:
     docker:
-      - image: cimg/node:jod
+      - image: cimg/node:22.14
     steps:
       - checkout
       - node/install-packages:
@@ -17,7 +17,7 @@ jobs:
 
   release:
     docker:
-      - image: cimg/node:jod
+      - image: cimg/node:22.14
     environment:
       CI: "true"
       HUSKY: "0"
@@ -34,13 +34,15 @@ jobs:
           command: |
             VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
             if [ -n "$VERSION" ] && git log -1 --format=%s | grep -q "chore(release)"; then
-              gh pr create --base main --head "release/$VERSION" \
-                --title "chore(release): merge release $VERSION assets" \
-                --body "Merge release $VERSION assets" || true
+              curl -s -X POST \
+                -H "Authorization: Bearer $GH_TOKEN" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/pulls" \
+                -d "{\"title\": \"chore(release): merge release $VERSION assets\", \"head\": \"release/$VERSION\", \"base\": \"main\", \"body\": \"Merge release $VERSION assets\"}" || true
             fi
 
 workflows:
-  build_and_test:
+  ci:
     jobs:
       - build_lint_test
       - release:
