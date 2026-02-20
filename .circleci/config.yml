@@ -1,0 +1,52 @@
+version: 2.1
+
+orbs:
+  node: circleci/node@7
+
+jobs:
+  build_lint_test:
+    docker:
+      - image: cimg/node:jod
+    steps:
+      - checkout
+      - node/install-packages:
+          pkg-manager: npm
+      - run: npm run build
+      - run: npm run lint
+      - run: npm run test --if-present
+
+  release:
+    docker:
+      - image: cimg/node:jod
+    environment:
+      CI: "true"
+      HUSKY: "0"
+    steps:
+      - checkout
+      - node/install-packages:
+          pkg-manager: npm
+      - run: npm run build
+      - run:
+          name: Semantic Release
+          command: npx semantic-release
+      - run:
+          name: Create Release Assets PR
+          command: |
+            VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+            if [ -n "$VERSION" ] && git log -1 --format=%s | grep -q "chore(release)"; then
+              gh pr create --base main --head "release/$VERSION" \
+                --title "chore(release): merge release $VERSION assets" \
+                --body "Merge release $VERSION assets" || true
+            fi
+
+workflows:
+  build_and_test:
+    jobs:
+      - build_lint_test
+      - release:
+          requires:
+            - build_lint_test
+          context: npm-publish
+          filters:
+            branches:
+              only: main
