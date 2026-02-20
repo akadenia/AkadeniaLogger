@@ -1,0 +1,37 @@
+version: 2.1
+
+orbs:
+  node: circleci/node@6.1
+
+jobs:
+  build-lint-test:
+    docker:
+      - image: cimg/node:22.14
+    steps:
+      - checkout
+      - node/install-packages:
+          pkg-manager: npm
+      - run: npm run build
+      - run: npm run lint
+      - run: npm run test
+
+  release:
+    docker:
+      - image: cimg/node:22.14
+    steps:
+      - checkout
+      - node/install-packages:
+          pkg-manager: npm
+      - run: npm run build
+      - run: npx semantic-release
+
+workflows:
+  build-lint-test-and-release:
+    jobs:
+      - build-lint-test
+      - release:
+          requires:
+            - build-lint-test
+          filters:
+            branches:
+              only: main
