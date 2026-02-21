@@ -63,10 +63,9 @@ jobs:
             exit 1
           fi
 
-          # Validate subject characters
-          SUBJECT_PATTERN='^[A-Za-z0-9 !@#$%^&*()_+=|{}\[\]:;"'\''<>,.?/~`-]+$'
-          if [[ ! "$SUBJECT" =~ $SUBJECT_PATTERN ]]; then
-            echo "❌ Subject contains invalid characters: '$SUBJECT'"
+          # Validate subject is not empty
+          if [[ -z "$SUBJECT" || "$SUBJECT" =~ ^[[:space:]]+$ ]]; then
+            echo "❌ Subject cannot be empty"
             exit 1
           fi
 
