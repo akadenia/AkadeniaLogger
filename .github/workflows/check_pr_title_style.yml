@@ -32,7 +32,7 @@ jobs:
           done
 
           # Validate conventional commit format: type(scope): subject
-          PATTERN='^([a-zA-Z]+)\(([a-zA-Z0-9$.,\-*/ ]+)\): (.+)$'
+          PATTERN='^([a-zA-Z]+)\(([a-zA-Z0-9$.,*/ _-]+)\): (.+)$'
           if [[ ! "$PR_TITLE" =~ $PATTERN ]]; then
             echo "❌ PR title must match: type(scope): subject"
             echo ""
@@ -64,7 +64,7 @@ jobs:
           fi
 
           # Validate subject characters
-          SUBJECT_PATTERN='^[A-Za-z0-9 !@#$%^&*()\-_+=|{}\[\]:;"'\''<>,.?/~`]+$'
+          SUBJECT_PATTERN='^[A-Za-z0-9 !@#$%^&*()_+=|{}\[\]:;"'\''<>,.?/~`-]+$'
           if [[ ! "$SUBJECT" =~ $SUBJECT_PATTERN ]]; then
             echo "❌ Subject contains invalid characters: '$SUBJECT'"
             exit 1
