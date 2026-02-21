@@ -9,8 +9,7 @@ jobs:
       - image: cimg/base:current
     steps:
       - checkout
-      - node/install:
-          node-version-file: .nvmrc
+      - node/install
       - node/install-packages:
           pkg-manager: npm
       - run: npm run build
@@ -25,8 +24,7 @@ jobs:
       HUSKY: "0"
     steps:
       - checkout
-      - node/install:
-          node-version-file: .nvmrc
+      - node/install
       - node/install-packages:
           pkg-manager: npm
       - run: npm run build
