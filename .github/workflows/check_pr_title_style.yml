@@ -11,44 +11,63 @@ jobs:
   check-pr-title-style:
     name: Check pr title style
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read
     steps:
-      - uses: amannn/action-semantic-pull-request@0723387faaf9b38adef4775cd42cfd5155ed6017 # Using 5.5.3
+      - name: Validate PR title
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          # Configure which types are allowed.
-          # Default: https://github.com/commitizen/conventional-commit-types
-          requireScope: true
-          # Configure which scopes are disallowed in PR titles. For instance by setting
-          # the value below, `chore(core): ...` and `ci(e2e,core): ...` will be rejected.
-          disallowScopes: |
-            core
-          # Configure additional validation for the subject based on a regex.
-          # This example ensures the subject must only contain valid characters.
-          subjectPattern: ^[A-Za-z0-9\s!@#$%^&*()-_+=|{}\[\]:;"'<>,.?/~`]+$
-          # If `subjectPattern` is configured, you can use this property to override
-          # the default error message that is shown when the pattern doesn't match.
-          # The variables `subject` and `title` can be used within the message.
-          subjectPatternError: |
-            The subject "{subject}" found in the pull request title "{title}"
-            didn't match the configured pattern. Please ensure that the subject
-            must only contain valid characters.
-          ignoreLabels: |
-            bot
-            ignore-semantic-pull-request
-          # If you're using a format for the PR title that differs from the traditional Conventional
-          # Commits spec, you can use these options to customize the parsing of the type, scope and
-          # subject. The `headerPattern` should contain a regex where the capturing groups in parentheses
-          # correspond to the parts listed in `headerPatternCorrespondence`.
-          # See: https://github.com/conventional-changelog/conventional-changelog/tree/master/packages/conventional-commits-parser#headerpattern
-          headerPattern: '^(\w*)(?:\(([\w$.,\-*/ ]*)\))?: (.*)$'
-          headerPatternCorrespondence: type, scope, subject
-          # For work-in-progress PRs you can typically use draft pull requests
-          # from GitHub. However, private repositories on the free plan don't have
-          # this option and therefore this action allows you to opt-in to using the
-          # special "[WIP]" prefix to indicate this state. This will avoid the
-          # validation of the PR title and the pull request checks remain pending.
-          # Note that a second check will be reported if this is enabled.
-          wip: true
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          # Skip if WIP
+          if [[ "$PR_TITLE" =~ ^\[WIP\] ]]; then
+            echo "✅ WIP PR — skipping validation"
+            exit 0
+          fi
+
+          # Skip if ignored labels
+          for label in bot ignore-semantic-pull-request; do
+            if [[ ",$PR_LABELS," == *",$label,"* ]]; then
+              echo "✅ Label '$label' found — skipping validation"
+              exit 0
+            fi
+          done
+
+          # Validate conventional commit format: type(scope): subject
+          PATTERN='^([a-zA-Z]+)\(([a-zA-Z0-9$.,\-*/ ]+)\): (.+)$'
+          if [[ ! "$PR_TITLE" =~ $PATTERN ]]; then
+            echo "❌ PR title must match: type(scope): subject"
+            echo ""
+            echo "   Got: $PR_TITLE"
+            echo ""
+            echo "   Examples:"
+            echo "     feat(auth): add login page"
+            echo "     fix(api): handle null response"
+            echo "     ci(circleci): migrate to CircleCI"
+            exit 1
+          fi
+
+          TYPE="${BASH_REMATCH[1]}"
+          SCOPE="${BASH_REMATCH[2]}"
+          SUBJECT="${BASH_REMATCH[3]}"
+
+          # Validate type
+          VALID_TYPES="feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert"
+          if [[ ! "$TYPE" =~ ^($VALID_TYPES)$ ]]; then
+            echo "❌ Invalid type: '$TYPE'"
+            echo "   Allowed: $VALID_TYPES"
+            exit 1
+          fi
+
+          # Disallow 'core' scope
+          if [[ "$SCOPE" == "core" ]]; then
+            echo "❌ Scope 'core' is not allowed"
+            exit 1
+          fi
+
+          # Validate subject characters
+          SUBJECT_PATTERN='^[A-Za-z0-9 !@#$%^&*()\-_+=|{}\[\]:;"'\''<>,.?/~`]+$'
+          if [[ ! "$SUBJECT" =~ $SUBJECT_PATTERN ]]; then
+            echo "❌ Subject contains invalid characters: '$SUBJECT'"
+            exit 1
+          fi
+
+          echo "✅ PR title is valid: $TYPE($SCOPE): $SUBJECT"
