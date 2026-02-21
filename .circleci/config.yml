@@ -6,9 +6,11 @@ orbs:
 jobs:
   build_lint_test:
     docker:
-      - image: cimg/node:22.14
+      - image: cimg/base:current
     steps:
       - checkout
+      - node/install:
+          node-version-file: .nvmrc
       - node/install-packages:
           pkg-manager: npm
       - run: npm run build
@@ -17,12 +19,14 @@ jobs:
 
   release:
     docker:
-      - image: cimg/node:22.14
+      - image: cimg/base:current
     environment:
       CI: "true"
       HUSKY: "0"
     steps:
       - checkout
+      - node/install:
+          node-version-file: .nvmrc
       - node/install-packages:
           pkg-manager: npm
       - run: npm run build
