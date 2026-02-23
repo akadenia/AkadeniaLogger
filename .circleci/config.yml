@@ -36,11 +36,24 @@ jobs:
           command: |
             VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
             if [ -n "$VERSION" ] && git log -1 --format=%s | grep -q "chore(release)"; then
-              curl -s -X POST \
+              PAYLOAD=$(jq -n \
+                --arg title "chore(release): merge release ${VERSION} assets" \
+                --arg head "release/${VERSION}" \
+                --arg base "main" \
+                --arg body "Merge release ${VERSION} assets" \
+                '{title: $title, head: $head, base: $base, body: $body}')
+              RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
                 -H "Authorization: Bearer $GH_TOKEN" \
                 -H "Accept: application/vnd.github+json" \
                 "https://api.github.com/repos/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/pulls" \
-                -d "{\"title\": \"chore(release): merge release $VERSION assets\", \"head\": \"release/$VERSION\", \"base\": \"main\", \"body\": \"Merge release $VERSION assets\"}" || true
+                -d "$PAYLOAD")
+              HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+              BODY=$(echo "$RESPONSE" | head -n -1)
+              if [ "$HTTP_CODE" != "201" ] && [ "$HTTP_CODE" != "422" ]; then
+                echo "PR creation failed (HTTP $HTTP_CODE): $BODY"
+                exit 1
+              fi
+              echo "PR creation response (HTTP $HTTP_CODE): $BODY"
             fi
 
 workflows:
