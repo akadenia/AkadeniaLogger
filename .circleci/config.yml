@@ -5,11 +5,15 @@ orbs:
 
 jobs:
   build_lint_test:
+    parameters:
+      node-version:
+        type: string
     docker:
       - image: cimg/base:current
     steps:
       - checkout
-      - node/install
+      - node/install:
+          node-version: << parameters.node-version >>
       - node/install-packages:
           pkg-manager: npm
       - run: npm run build
@@ -59,7 +63,10 @@ jobs:
 workflows:
   ci:
     jobs:
-      - build_lint_test
+      - build_lint_test:
+          matrix:
+            parameters:
+              node-version: ["20", "22", "24"]
       - release:
           requires:
             - build_lint_test
