@@ -28,7 +28,8 @@ jobs:
       HUSKY: "0"
     steps:
       - checkout
-      - node/install
+      - node/install:
+          node-version: "22"
       - node/install-packages:
           pkg-manager: npm
       - run: npm run build
