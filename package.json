@@ -52,5 +52,8 @@
   "dependencies": {
     "@akadenia/api": "^1.1.0",
     "@sentry/types": "^8.33.1"
+  },
+  "engines": {
+    "node": ">=20.x"
   }
 }
