@@ -11,62 +11,53 @@ jobs:
   check-pr-title-style:
     name: Check pr title style
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
     steps:
-      - name: Validate PR title
+      - name: Validate PR title (Conventional Commits)
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
         run: |
-          # Skip if WIP
-          if [[ "$PR_TITLE" =~ ^\[WIP\] ]]; then
-            echo "✅ WIP PR — skipping validation"
+          # Skip WIP PRs
+          if echo "$PR_TITLE" | grep -qiE '^\[WIP\]'; then
+            echo "WIP PR — skipping title check."
             exit 0
           fi
 
-          # Skip if ignored labels
-          for label in bot ignore-semantic-pull-request; do
-            if [[ ",$PR_LABELS," == *",$label,"* ]]; then
-              echo "✅ Label '$label' found — skipping validation"
-              exit 0
-            fi
-          done
+          # Allowed types (conventional commits)
+          TYPES="build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test"
 
-          # Validate conventional commit format: type(scope): subject
-          PATTERN='^([a-zA-Z]+)\(([a-zA-Z0-9$.,*/ _-]+)\): (.+)$'
-          if [[ ! "$PR_TITLE" =~ $PATTERN ]]; then
-            echo "❌ PR title must match: type(scope): subject"
+          # Rule: type(scope): subject
+          #   - type    : one of the allowed types above
+          #   - scope   : required, alphanumeric + hyphens/dots/slashes/spaces/$/*
+          #   - subject : non-empty (any casing allowed)
+          PATTERN="^($TYPES)\([-a-zA-Z0-9\$.*/ ]+\): .+$"
+
+          if ! echo "$PR_TITLE" | grep -qE "$PATTERN"; then
             echo ""
-            echo "   Got: $PR_TITLE"
+            echo "❌ PR title does not follow Conventional Commits format."
+            echo ""
+            echo "   Title : \"$PR_TITLE\""
+            echo ""
+            echo "   Required format : type(scope): subject"
+            echo "   Allowed types   : build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test"
+            echo "   Rules:"
+            echo "     - scope is required"
             echo ""
             echo "   Examples:"
-            echo "     feat(auth): add login page"
-            echo "     fix(api): handle null response"
-            echo "     ci(circleci): migrate to CircleCI"
+            echo "     ✅  feat(auth): add OAuth2 support"
+            echo "     ✅  fix(api): Handle empty response body"
+            echo "     ❌  feat: missing scope"
             exit 1
           fi
 
-          TYPE="${BASH_REMATCH[1]}"
-          SCOPE="${BASH_REMATCH[2]}"
-          SUBJECT="${BASH_REMATCH[3]}"
-
-          # Validate type
-          VALID_TYPES="feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert"
-          if [[ ! "$TYPE" =~ ^($VALID_TYPES)$ ]]; then
-            echo "❌ Invalid type: '$TYPE'"
-            echo "   Allowed: $VALID_TYPES"
+          # Disallow scope "core" (trim whitespace before comparing)
+          SCOPE=$(echo "$PR_TITLE" | sed -E "s/^[a-z]+\(([^)]+)\):.*/\1/" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+          if [ "$SCOPE" = "core" ]; then
+            echo ""
+            echo "❌ The scope \"core\" is not allowed."
+            echo "   Title : \"$PR_TITLE\""
             exit 1
           fi
 
-          # Disallow 'core' scope
-          if [[ "$SCOPE" == "core" ]]; then
-            echo "❌ Scope 'core' is not allowed"
-            exit 1
-          fi
-
-          # Validate subject is not empty
-          if [[ -z "$SUBJECT" || "$SUBJECT" =~ ^[[:space:]]+$ ]]; then
-            echo "❌ Subject cannot be empty"
-            exit 1
-          fi
-
-          echo "✅ PR title is valid: $TYPE($SCOPE): $SUBJECT"
+          echo "✅ PR title is valid: \"$PR_TITLE\""
