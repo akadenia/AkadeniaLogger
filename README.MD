@@ -296,7 +296,7 @@ npm test
 
 We follow [Conventional Commits](https://www.conventionalcommits.org/). Scope is required.
 
-```
+```text
 type(scope): description
 ```
 

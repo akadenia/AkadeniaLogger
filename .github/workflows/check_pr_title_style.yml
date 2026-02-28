@@ -7,6 +7,9 @@ on:
       - reopened
       - synchronize
 
+# Restrict default token permissions for the entire workflow
+permissions: {}
+
 jobs:
   check-pr-title-style:
     name: Check pr title style
