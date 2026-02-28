@@ -120,14 +120,7 @@ type Options = {
   response?: AkadeniaApiResponse      // API response (trimmed before sending to adapters)
   exception?: Error                   // Error object for exception/fatal captures
   forceConsole?: boolean              // Override consoleEnabled for this call
-  signozPayload?: {                   // SignOz-specific OTLP fields
-    trace_id?: string
-    span_id?: string
-    trace_flags?: number
-    severity_number?: number
-    resources?: Record<string, any>
-    attributes?: Record<string, any>
-  }
+  signozPayload?: any                 // SignOz-specific OTLP fields (trace_id, span_id, resources, attributes, etc.)
 }
 ```
 
