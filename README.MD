@@ -7,21 +7,21 @@
   <img src="https://cdn.akadenia.com/images/badges/license-mit.svg" alt="License: MIT" />
   <img src="https://cdn.akadenia.com/images/badges/typescript.svg" alt="TypeScript" />
   
-  A flexible and extensible logging library for TypeScript applications, part of the Akadenia ecosystem.
+  A structured TypeScript logging library built for multi-adapter workflows. Wire up Sentry, SignOz, Firebase, or Azure Functions — or just console — through a single unified interface. Adapter errors never crash your app.
 
-[Documentation](https://akadenia.com/packages/akadenia-logger) • [GitHub](https://github.com/akadenia/AkadeniaLogger) • [Issues](https://github.com/akadenia/AkadeniaLogger/issues)
-
+  [Documentation](https://akadenia.com/packages/akadenia-logger) · [GitHub](https://github.com/akadenia/AkadeniaLogger) · [Issues](https://github.com/akadenia/AkadeniaLogger/issues)
 </div>
 
 ## Features
 
-- **Multiple Logging Levels**: Trace, Debug, Info, Warn, Error with configurable minimum levels
-- **Extensible Adapter System**: Support for different logging backends and services
+- **Multiple Logging Levels**: Trace, Debug, Info, Warn, Error with configurable minimum levels per adapter
+- **Extensible Adapter System**: Plug in any logging backend — Sentry, SignOz, Firebase, Azure Functions, or your own
 - **Built-in Console Logging**: Configurable console output with level filtering
-- **Predefined Events**: Common logging scenarios like Login, Share, AppOpen, Search
+- **Predefined Events**: Common analytics scenarios like Login, Share, AppOpen, Search
 - **Exception Handling**: Automatic stack trace capture and error logging
-- **Metadata Support**: Rich context with extra data and metadata
-- **Multiple Adapters**: Built-in support for Sentry, SignOz, Azure Functions, and Firebase
+- **Metadata Support**: Rich context via `extraData`, `response`, and `signozPayload`
+- **Log Sanitization**: Newlines, tabs, and non-printable characters are stripped before sending to adapters to prevent log injection
+- **Resilient Adapters**: Adapter errors are silently absorbed — a broken integration won't crash your app
 - **TypeScript Support**: Full type definitions and type safety
 
 ## Table of Contents
@@ -32,6 +32,7 @@
 - [Logging Levels](#logging-levels)
 - [Predefined Events](#predefined-events)
 - [Adapters](#adapters)
+- [Custom Adapter](#custom-adapter)
 - [Development](#development)
 - [Contributing](#contributing)
 - [License](#license)
@@ -47,7 +48,6 @@ npm install @akadenia/logger
 ```typescript
 import { Logger, Severity } from "@akadenia/logger"
 
-// Create a logger instance
 const logger = new Logger({
   consoleEnabled: true,
   consoleMinimumLogLevel: Severity.Info,
@@ -55,10 +55,10 @@ const logger = new Logger({
 
 // Basic logging
 logger.info("Application started")
-logger.error("An error occurred")
+logger.warn("High memory usage", { extraData: { memoryMB: 512 } })
+logger.error("Payment failed", { extraData: { orderId: "ORD-123" } })
 
-// Logging with extra data
-logger.debug("User action", { extraData: { userId: "123", action: "click" } })
+// With API response context
 logger.error("Failed to fetch data", {
   extraData: {
     userId: "1234",
@@ -73,117 +73,182 @@ logger.error("Failed to fetch data", {
 
 // Exception logging
 try {
-  // Some code that might throw
+  // ...
 } catch (error) {
-  logger.exception("Failed to process request", error as Error)
+  logger.exception("Failed to process request", error as Error, {
+    extraData: { userId: "u42" }
+  })
 }
 ```
+
+---
 
 ## Configuration
 
-The logger can be configured with the following options:
-
 ```typescript
 type Config = {
-  consoleEnabled?: boolean // Enable/disable console logging
-  consoleMinimumLogLevel?: Severity // Minimum level for console output
+  consoleEnabled?: boolean           // Enable/disable console logging
+  consoleMinimumLogLevel?: Severity  // Minimum level for console output
 }
 ```
+
+---
 
 ## Logging Levels
 
-The logger supports the following severity levels (in ascending order):
+Severity levels in ascending order:
 
-1. `Trace` - Most detailed logging
-2. `Debug` - Detailed information for debugging
-3. `Info` - General information about application flow
-4. `Warn` - Warning messages for potential issues
-5. `Error` - Error messages for actual problems
+| Level | Value | Usage |
+|---|---|---|
+| `Severity.Trace` | 1 | Fine-grained diagnostic info |
+| `Severity.Debug` | 2 | Development debugging |
+| `Severity.Info` | 3 | Operational events |
+| `Severity.Warn` | 4 | Unexpected but recoverable situations |
+| `Severity.Error` | 5 | Failures that need attention |
 
-## Predefined Events
+Each adapter has its own `minimumLogLevel` — messages below the threshold are silently skipped.
 
-The logger includes predefined events for common scenarios:
+---
+
+## Logging Options
+
+All log methods accept an optional `Options` object:
 
 ```typescript
-enum PredefinedLogEvents {
-  Login = "LOGIN",
-  Share = "SHARE",
-  AppOpen = "APP_OPEN",
-  Search = "SEARCH",
+type Options = {
+  extraData?: any                     // Structured metadata attached to the log
+  response?: AkadeniaApiResponse      // API response (trimmed before sending to adapters)
+  exception?: Error                   // Error object for exception/fatal captures
+  forceConsole?: boolean              // Override consoleEnabled for this call
+  signozPayload?: any                 // SignOz-specific OTLP fields (trace_id, span_id, resources, attributes, etc.)
 }
 ```
 
-Example usage:
+---
+
+## Predefined Events
+
+For analytics-style events:
 
 ```typescript
+enum PredefinedLogEvents {
+  Login   = "LOGIN",
+  Share   = "SHARE",
+  AppOpen = "APP_OPEN",
+  Search  = "SEARCH",
+}
+```
+
+```typescript
+logger.predefinedEvent({ type: PredefinedLogEvents.Login })
+
 logger.predefinedEvent({
-  type: PredefinedLogEvents.Login,
-  extraData: { userId: "123" },
+  type: PredefinedLogEvents.Share,
+  extraData: { contentType: "article", itemId: "post-1", method: "link" },
 })
 
 logger.predefinedEvent({
   type: PredefinedLogEvents.Search,
-  extraData: { searchTerm: "query" },
+  extraData: { searchTerm: "typescript logging" },
 })
+
+logger.predefinedEvent({ type: PredefinedLogEvents.AppOpen })
 ```
+
+> Predefined events are routed to adapters that implement `predefinedEvent()` (e.g. FirebaseAdapter). Other adapters ignore them gracefully.
+
+---
 
 ## Adapters
 
-### Sentry Adapter
-
-For error tracking and monitoring:
+Add one or more adapters to fan out logs to external services:
 
 ```typescript
-import { SentryAdapter } from "@akadenia/logger/adapters"
+logger.addLogger(adapter)
+```
 
-const sentryAdapter = new SentryAdapter({
-  dsn: "your-sentry-dsn",
-})
+### Sentry
+
+```typescript
+import * as Sentry from "@sentry/node"
+import { SentryAdapter, Severity } from "@akadenia/logger"
+
+Sentry.init({ dsn: "https://..." })
+
+const sentryAdapter = new SentryAdapter(Sentry, Severity.Warn)
 logger.addLogger(sentryAdapter)
 ```
 
-### SignOz Adapter
+> The Sentry adapter automatically handles Sentry's 16KB payload limit — it truncates `response.data` first, then the full payload if needed. Sensitive keys (`auth`, `token`, `password`, `secret`, etc.) are masked before sending.
 
-For application monitoring:
+### SignOz (OpenTelemetry)
 
 ```typescript
-import { SignozAdapter } from "@akadenia/logger/adapters"
-import { Severity } from "@akadenia/logger"
+import { SignozAdapter, Severity } from "@akadenia/logger"
 
-const signozAdapter = new SignozAdapter("http://collector:4318/v1/logs", Severity.Info)
+const signozAdapter = new SignozAdapter("https://ingest.signoz.io/logs", Severity.Info)
 logger.addLogger(signozAdapter)
+
+// With trace context
+logger.info("Request processed", {
+  extraData: { userId: "u42" },
+  signozPayload: {
+    trace_id: "abc123",
+    span_id: "def456",
+    resources: { service: "api-server", env: "production" },
+    attributes: { "http.method": "GET", "http.route": "/users" },
+  },
+})
 ```
 
-You can also use a custom endpoint:
+### Azure Functions
 
 ```typescript
-const signozAdapter = new SignozAdapter("https://signoz.example.com:4318/custom/route", Severity.Debug)
-logger.addLogger(signozAdapter)
-```
+import { AzureFunctionsAdapter, Severity } from "@akadenia/logger"
 
-### Azure Functions Adapter
-
-For Azure Functions logging:
-
-```typescript
-import { AzureFunctionsAdapter } from "@akadenia/logger/adapters"
-
-const azureAdapter = new AzureFunctionsAdapter(context)
+// Inside your Azure Function handler:
+const azureAdapter = new AzureFunctionsAdapter(context, Severity.Debug)
 logger.addLogger(azureAdapter)
 ```
 
-### Firebase Adapter
-
-For Firebase logging:
+### Firebase (Crashlytics + Analytics)
 
 ```typescript
-import { FirebaseAdapter } from "@akadenia/logger/adapters"
+import { FirebaseAdapter, Severity } from "@akadenia/logger"
+import crashlytics from "@react-native-firebase/crashlytics"
+import analytics from "@react-native-firebase/analytics"
 
-const firebaseAdapter = new FirebaseAdapter({
-  // Firebase configuration
-})
+const firebaseAdapter = new FirebaseAdapter(crashlytics, analytics, Severity.Info, true)
 logger.addLogger(firebaseAdapter)
 ```
+
+---
+
+## Custom Adapter
+
+Implement the `ILogger` interface to build your own:
+
+```typescript
+import { ILogger, Severity, Options } from "@akadenia/logger"
+
+class MyAdapter implements ILogger {
+  name = "my-adapter"
+  minimumLogLevel = Severity.Info
+
+  trace(message: string, options?: Options) {}
+  debug(message: string, options?: Options) {}
+  info(message: string, options?: Options) { console.log("[INFO]", message) }
+  warn(message: string, options?: Options) { console.warn("[WARN]", message) }
+  error(message: string, options?: Options) { console.error("[ERROR]", message) }
+  exception(message: string, exception: Error, options?: Options) {
+    console.error("[EXCEPTION]", message, exception)
+  }
+}
+
+logger.addLogger(new MyAdapter())
+```
+
+---
 
 ## Development
 
@@ -211,9 +276,7 @@ npm run format
 npm run lint
 ```
 
-## License
-
-MIT
+---
 
 ## Contributing
 
@@ -231,54 +294,20 @@ npm test
 
 ### Commit Message Guidelines
 
-We follow [Conventional Commits](https://www.conventionalcommits.org/) for our semantic release process. **We prefer commit messages to include a scope in parentheses** for better categorization and changelog generation.
+We follow [Conventional Commits](https://www.conventionalcommits.org/). Scope is required.
 
-### Preferred Format
-
-```
+```text
 type(scope): description
-
-[optional body]
-
-[optional footer]
 ```
 
-### Examples
+**Common scopes:** `logger` · `adapters` · `events` · `docs` · `deps` · `test` · `build` · `ci`
 
-```bash
-## ✅ Preferred - with scope
-feat(adapters): add new Sentry adapter configuration
-fix(logger): resolve exception handling issue
-docs(readme): add troubleshooting section
-chore(deps): update dependencies
+**Types:** `feat` · `fix` · `docs` · `style` · `refactor` · `test` · `chore`
 
-## ❌ Less preferred - without scope
-feat: add new Sentry adapter configuration
-fix: resolve exception handling issue
-docs: add troubleshooting section
-chore: update dependencies
-```
+## Requirements
 
-### Common Scopes
-
-- `logger` - Core logger functionality
-- `adapters` - Adapter implementations
-- `events` - Predefined event handling
-- `docs` - Documentation updates
-- `deps` - Dependency updates
-- `test` - Test-related changes
-- `build` - Build and build tooling
-- `ci` - CI/CD configuration
-
-### Commit Types
-
-- `feat` - New features
-- `fix` - Bug fixes
-- `docs` - Documentation changes
-- `style` - Code style changes (formatting, etc.)
-- `refactor` - Code refactoring
-- `test` - Adding or updating tests
-- `chore` - Maintenance tasks
+- Node.js >= 22 (runtime)
+- Node.js >= 20 (consumer)
 
 ## License
 
