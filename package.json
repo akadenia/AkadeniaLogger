@@ -42,7 +42,7 @@
     "@jest/globals": "^30.3.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/exec": "^6.0.3",
-    "@types/node": "^20.19.37",
+    "@types/node": "^24.12.0",
     "jest": "^30.3.0",
     "prettier": "^3.3.3",
     "semantic-release": "22.0.12",
