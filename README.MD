@@ -7,7 +7,7 @@
   <img src="https://cdn.akadenia.com/images/badges/license-mit.svg" alt="License: MIT" />
   <img src="https://cdn.akadenia.com/images/badges/typescript.svg" alt="TypeScript" />
   
-  A structured TypeScript logging library built for multi-adapter workflows. Wire up Sentry, SignOz, Firebase, or Azure Functions — or just console — through a single unified interface. Adapter errors never crash your app.
+  A structured TypeScript logging library built for multi-adapter workflows. Wire up Sentry, SignOz, Firebase, or your own adapter — all through a single unified interface. Adapter errors never crash your app.
 
   [Documentation](https://akadenia.com/packages/akadenia-logger) · [GitHub](https://github.com/akadenia/AkadeniaLogger) · [Issues](https://github.com/akadenia/AkadeniaLogger/issues)
 </div>
@@ -15,7 +15,7 @@
 ## Features
 
 - **Multiple Logging Levels**: Trace, Debug, Info, Warn, Error with configurable minimum levels per adapter
-- **Extensible Adapter System**: Plug in any logging backend — Sentry, SignOz, Firebase, Azure Functions, or your own
+- **Extensible Adapter System**: Plug in any logging backend — Sentry, SignOz, Firebase, or your own
 - **Built-in Console Logging**: Configurable console output with level filtering
 - **Predefined Events**: Common analytics scenarios like Login, Share, AppOpen, Search
 - **Exception Handling**: Automatic stack trace capture and error logging
@@ -199,16 +199,6 @@ logger.info("Request processed", {
     attributes: { "http.method": "GET", "http.route": "/users" },
   },
 })
-```
-
-### Azure Functions
-
-```typescript
-import { AzureFunctionsAdapter, Severity } from "@akadenia/logger"
-
-// Inside your Azure Function handler:
-const azureAdapter = new AzureFunctionsAdapter(context, Severity.Debug)
-logger.addLogger(azureAdapter)
 ```
 
 ### Firebase (Crashlytics + Analytics)
