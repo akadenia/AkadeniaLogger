@@ -1,3 +1,46 @@
+# [2.0.0](https://github.com/akadenia/AkadeniaLogger/compare/v1.0.0...v2.0.0) (2026-03-23)
+
+
+### Bug Fixes
+
+* **azure-func-adapter:** fix azure functions context severities ([b11d9aa](https://github.com/akadenia/AkadeniaLogger/commit/b11d9aa8f43fa638eea649ce8ff0161080a6c155))
+* **azure-functions-adapter:** export adapter ([7faf8fe](https://github.com/akadenia/AkadeniaLogger/commit/7faf8fee7e3168c5588826069e55d54f60fa0339))
+* **ci:** allow uppercase in PR title subject and remove write permissions ([#47](https://github.com/akadenia/AkadeniaLogger/issues/47)) ([cb5daed](https://github.com/akadenia/AkadeniaLogger/commit/cb5daede47421f026f3c8c776866868e8428ce75))
+* **ci:** allow wild characters in PR title checker ([#6](https://github.com/akadenia/AkadeniaLogger/issues/6)) ([6e99319](https://github.com/akadenia/AkadeniaLogger/commit/6e9931987fdb8df8f42d40c3f1f0cce51ead0697))
+* **circleci:** use jq for safe json and handle pr creation errors explicitly ([#51](https://github.com/akadenia/AkadeniaLogger/issues/51)) ([21ff720](https://github.com/akadenia/AkadeniaLogger/commit/21ff72043806f9d5298317891a3e9291d9dd57cb))
+* **console-log:** exclude extraData from console log if extraData is not defined ([#13](https://github.com/akadenia/AkadeniaLogger/issues/13)) ([494281a](https://github.com/akadenia/AkadeniaLogger/commit/494281a1dad3ac359b18e78f1d1c29b494c4d4a4))
+* **npm:** update homepage and upgrade packages ([5d67aee](https://github.com/akadenia/AkadeniaLogger/commit/5d67aeeebc965f32892856b404e12693100d0ccd))
+* **npm:** upgrade akadenia api to fix vulnerable dependencies ([#20](https://github.com/akadenia/AkadeniaLogger/issues/20)) ([7dec9a4](https://github.com/akadenia/AkadeniaLogger/commit/7dec9a4ca5919448922e2f1157cd3432b5b5d63f))
+* **sentry-types:** make @sentry/types a dependency ([599138c](https://github.com/akadenia/AkadeniaLogger/commit/599138cf79d5ecc71b895c5757b71dc281e2e454))
+
+
+### Features
+
+* **azure-functions-adapter:** implement azure functions context logger as an adapter ([#29](https://github.com/akadenia/AkadeniaLogger/issues/29)) ([77c3f5d](https://github.com/akadenia/AkadeniaLogger/commit/77c3f5d9807ff6f98774a32ec706bb068ef52fb5))
+* **config:** refactor config file and logger constructor ([#26](https://github.com/akadenia/AkadeniaLogger/issues/26)) ([2348566](https://github.com/akadenia/AkadeniaLogger/commit/234856671d129f573e42d68402e32399d1af6cb9))
+* **core:** include extraData when logging to console ([#7](https://github.com/akadenia/AkadeniaLogger/issues/7)) ([41c4fb3](https://github.com/akadenia/AkadeniaLogger/commit/41c4fb3f0253dc492e8daa0092bccc79f3372686))
+* **logger:** enhance logger to handle response additional data in extraData field ([#37](https://github.com/akadenia/AkadeniaLogger/issues/37)) ([cc68c34](https://github.com/akadenia/AkadeniaLogger/commit/cc68c34272d7f1efa761674716387e759216143e))
+* **logger:** enhance logger to handle response additional data in extraData field ([#38](https://github.com/akadenia/AkadeniaLogger/issues/38)) ([4b98cc9](https://github.com/akadenia/AkadeniaLogger/commit/4b98cc999a1593cbfd6d681d935a2b926d1b52d5))
+* **minimun-log-level:** ability to have different minimum log level per adapter ([#21](https://github.com/akadenia/AkadeniaLogger/issues/21)) ([1648cf7](https://github.com/akadenia/AkadeniaLogger/commit/1648cf7b730bf5d4881edaf220e446c8987014c3))
+* **node:** bump to node 20 ([#15](https://github.com/akadenia/AkadeniaLogger/issues/15)) ([e7e2eda](https://github.com/akadenia/AkadeniaLogger/commit/e7e2eda52d4529f921fa726ab5b5ffad74bd7737))
+* **security:** implement message sanitization in logger and signoz adapter udpates ([#43](https://github.com/akadenia/AkadeniaLogger/issues/43)) ([5cf4cab](https://github.com/akadenia/AkadeniaLogger/commit/5cf4cab52dc24e2d4c01451b987a92a775f84894))
+* **sentry,azure-functions:** add support for sentry types and trace ([#17](https://github.com/akadenia/AkadeniaLogger/issues/17)) ([f55a8b4](https://github.com/akadenia/AkadeniaLogger/commit/f55a8b49f1c022da4fd67f4447127bbf4d93dcf4))
+* **serializer:** add enhanced serialization ([#40](https://github.com/akadenia/AkadeniaLogger/issues/40)) ([47d993a](https://github.com/akadenia/AkadeniaLogger/commit/47d993a829191ad00b3d78085da7860a69e611ce))
+* **signoz:** implement signoz adapter ([#9](https://github.com/akadenia/AkadeniaLogger/issues/9)) ([1b850c3](https://github.com/akadenia/AkadeniaLogger/commit/1b850c3fc70a25961347c4edb08616d4b6ef0141))
+
+
+### BREAKING CHANGES
+
+* **logger:** SentryAdapter now uses safeStringify() and byte-based truncation
+
+This ensures Sentry's 16KB limit is properly enforced and prevents log data from being truncated by sentry. 
+
+No required change to upgrade.
+* **logger:** SentryAdapter now uses safeStringify() and byte-based truncation
+
+This ensures Sentry's 16KB limit is properly enforced and prevents log data from been trancated by sentry
+from complex data types while maintaining backward compatibility for basic usage.
+
 # [3.1.0](https://github.com/akadenia/AkadeniaLogger/compare/3.0.0...3.1.0) (2025-12-09)
 
 
