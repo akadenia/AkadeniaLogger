@@ -30,6 +30,12 @@ Examples:
 ❌  feat(core): disallowed scope
 ```
 
+## Git Commits
+
+- **All commits must be signed** — use SSH or GPG signing (`git config commit.gpgsign true`)
+- Use conventional commit messages matching the PR title format
+- **Always start from a freshly synced branch** — run `git fetch origin && git checkout -b your-branch origin/main` before creating any branch. Never branch from a stale local checkout.
+
 ## Pre-Push Checklist — MANDATORY
 
 Before every push, run all three and fix any failures:
@@ -62,6 +68,3 @@ Do not manually bump versions in `package.json`.
 
 - Tests live in `__tests__/`, run with `jest`
 - All tests must pass before pushing
-
-> **AkadeniaAzureStorage only:** Integration tests require Azurite (local Azure emulator).
-> Use `npm run test:with-azurite` for full test suite, or `npm test` for unit tests only.
