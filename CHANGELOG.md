@@ -1,3 +1,10 @@
+## [2.0.1](https://github.com/akadenia/AkadeniaLogger/compare/v2.0.0...v2.0.1) (2026-03-25)
+
+
+### Bug Fixes
+
+* **release:** replace @semantic-release/git with PR-based release asset workflow ([#63](https://github.com/akadenia/AkadeniaLogger/issues/63)) ([f76d7d2](https://github.com/akadenia/AkadeniaLogger/commit/f76d7d219ca9fcb7c38a4093842c889e312ac040))
+
 # [2.0.0](https://github.com/akadenia/AkadeniaLogger/compare/v1.0.0...v2.0.0) (2026-03-23)
 
 
