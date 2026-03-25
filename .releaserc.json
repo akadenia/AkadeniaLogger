@@ -13,7 +13,8 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "npm run build"
+        "prepareCmd": "npm run build",
+        "verifyConditionsCmd": "bash scripts/preflight-release.sh"
       }
     ],
     [
