@@ -51,8 +51,8 @@
     "@semantic-release/git": "^10.0.1"
   },
   "dependencies": {
-    "@akadenia/api": "^1.2.0",
-    "@sentry/types": "^10.45.0"
+    "@akadenia/api": "^1.2.1",
+    "@sentry/types": "^10.46.0"
   },
   "engines": {
     "node": ">=20.x"
