@@ -1,6 +1,5 @@
-import { Severity, ILogger, Options } from "../logger"
+import { Severity, ILogger, Options, ApiResponse } from "../logger"
 import { Client, Scope, SeverityLevel } from "@sentry/types"
-import { AkadeniaApiResponse } from "@akadenia/api"
 
 export enum SentrySeverity {
   Debug = "debug",
@@ -26,7 +25,7 @@ export class SentryAdapter implements ILogger {
     this.minimumLogLevel = minimumLogLevel
   }
 
-  private trimResponse(response: AkadeniaApiResponse): any {
+  private trimResponse(response: ApiResponse): any {
     // Trim response to only essential fields: status, statusText, message, data
     const trimmedResponse: any = {}
     if (response && typeof response === "object") {
@@ -39,7 +38,7 @@ export class SentryAdapter implements ILogger {
     return trimmedResponse
   }
 
-  private processData(extraData: any, response?: AkadeniaApiResponse): any {
+  private processData(extraData: any, response?: ApiResponse): any {
     // Accommodate extraData first (Sentry has 16kb limit)
     const processedData: any = { ...(extraData || {}) }
 
