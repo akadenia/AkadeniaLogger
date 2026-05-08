@@ -54,6 +54,6 @@
     "@sentry/types": "^10.46.0"
   },
   "engines": {
-    "node": ">=24.x"
+    "node": ">=20.x"
   }
 }

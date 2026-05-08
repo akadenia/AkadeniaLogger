@@ -2,6 +2,8 @@ import { jest, describe, expect, it, beforeEach, afterEach } from "@jest/globals
 import { SignozAdapter, SignozSeverity } from "../src/adapters/signoz_adapter"
 import { Severity } from "../src/logger"
 
+const originalFetch = global.fetch
+
 function mockFetchOk() {
   global.fetch = jest.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 200 }))
 }
@@ -24,6 +26,7 @@ describe("SignozAdapter Tests", () => {
 
   afterEach(() => {
     jest.clearAllMocks()
+    global.fetch = originalFetch
   })
 
   describe("Constructor", () => {
@@ -516,6 +519,36 @@ describe("SignozAdapter Tests", () => {
       const result = await (signozAdapter as any).captureMessage("Test", SignozSeverity.Info)
 
       expect(result).toBe(true)
+    })
+
+    it("should return false when fetch throws", async () => {
+      global.fetch = jest.fn<typeof fetch>().mockRejectedValue(new Error("Network failure"))
+
+      const result = await (signozAdapter as any).captureMessage("Test", SignozSeverity.Info)
+
+      expect(result).toBe(false)
+      expect(console.debug).toHaveBeenCalledWith("SignozAdapter fetch error:", expect.any(Error))
+    })
+
+    it("should return false and log timeout when fetch is aborted", async () => {
+      jest.useFakeTimers()
+      global.fetch = jest.fn<typeof fetch>().mockImplementation((_url, init) => {
+        return new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            const err = new Error("The operation was aborted")
+            err.name = "AbortError"
+            reject(err)
+          })
+        })
+      })
+
+      const capturePromise = (signozAdapter as any).captureMessage("Test", SignozSeverity.Info)
+      jest.advanceTimersByTime(6000)
+      const result = await capturePromise
+
+      expect(result).toBe(false)
+      expect(console.debug).toHaveBeenCalledWith("SignozAdapter fetch timeout")
+      jest.useRealTimers()
     })
   })
 })

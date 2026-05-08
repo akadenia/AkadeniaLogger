@@ -145,19 +145,35 @@ export class SignozAdapter implements ILogger {
       resourceLogs: [resourceLog],
     }
 
-    const response = await fetch(this.url.toString(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    })
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000)
 
-    if (!response.ok) {
-      const text = await response.text().catch(() => "")
-      console.debug(`${response.statusText}: ${text}`)
+    try {
+      const response = await fetch(this.url.toString(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      })
+
+      clearTimeout(timeoutId)
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => "")
+        console.debug(`${response.statusText}: ${text}`)
+        return false
+      }
+
+      return true
+    } catch (err) {
+      clearTimeout(timeoutId)
+      if (err instanceof Error && err.name === "AbortError") {
+        console.debug("SignozAdapter fetch timeout")
+        return false
+      }
+      console.debug("SignozAdapter fetch error:", err)
       return false
     }
-
-    return true
   }
 
   async trace(message: string, options?: Options | undefined) {
