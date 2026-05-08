@@ -1,5 +1,4 @@
 import { Severity, ILogger, Options } from "../logger"
-import { AxiosApiClient } from "@akadenia/api"
 
 export enum SignozSeverity {
   Warn = "warn",
@@ -51,19 +50,9 @@ export class SignozAdapter implements ILogger {
 
   minimumLogLevel: Severity
 
-  api: AxiosApiClient
-
   constructor(url: string | URL, minimumLogLevel = Severity.Debug) {
     this.minimumLogLevel = minimumLogLevel
-
     this.url = typeof url === "string" ? new URL(url) : url
-
-    this.api = new AxiosApiClient({
-      baseUrl: this.url.toString(),
-      headers: {
-        "Content-Type": "application/json",
-      },
-    })
   }
 
   private convertAttributesToOTLP(
@@ -156,10 +145,15 @@ export class SignozAdapter implements ILogger {
       resourceLogs: [resourceLog],
     }
 
-    const apiResponse = await this.api.post("", payload)
-    if (!apiResponse.success) {
-      console.debug(`${apiResponse.message}: ${apiResponse.data}`)
+    const response = await fetch(this.url.toString(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
 
+    if (!response.ok) {
+      const text = await response.text().catch(() => "")
+      console.debug(`${response.statusText}: ${text}`)
       return false
     }
 

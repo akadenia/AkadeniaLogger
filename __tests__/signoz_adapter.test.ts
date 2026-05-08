@@ -1,27 +1,25 @@
 import { jest, describe, expect, it, beforeEach, afterEach } from "@jest/globals"
 import { SignozAdapter, SignozSeverity } from "../src/adapters/signoz_adapter"
 import { Severity } from "../src/logger"
-import { AxiosApiClient, AkadeniaApiResponse } from "@akadenia/api"
 
-jest.mock("@akadenia/api", () => ({
-  AxiosApiClient: jest.fn(),
-}))
+function mockFetchOk() {
+  global.fetch = jest.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 200 }))
+}
+
+function mockFetchError(statusText: string, body: string) {
+  global.fetch = jest.fn<typeof fetch>().mockResolvedValue(new Response(body, { status: 500, statusText }))
+}
+
+function lastFetchBody(): any {
+  const calls = (global.fetch as jest.Mock).mock.calls
+  return JSON.parse((calls[calls.length - 1] as any)[1].body)
+}
 
 describe("SignozAdapter Tests", () => {
-  let mockApiClient: any
   let signozAdapter: SignozAdapter
 
   beforeEach(() => {
-    mockApiClient = {
-      post: (jest.fn() as any).mockResolvedValue({
-        success: true,
-        message: "Success",
-        data: {},
-      }),
-    }
-    ;(AxiosApiClient as jest.MockedClass<typeof AxiosApiClient>).mockImplementation(() => {
-      return mockApiClient as any
-    })
+    mockFetchOk()
   })
 
   afterEach(() => {
@@ -35,12 +33,6 @@ describe("SignozAdapter Tests", () => {
       expect(signozAdapter.name).toBe("signoz")
       expect(signozAdapter.minimumLogLevel).toBe(Severity.Debug)
       expect(signozAdapter.url.toString()).toBe("http://collector:4318/v1/logs")
-      expect(AxiosApiClient).toHaveBeenCalledWith({
-        baseUrl: "http://collector:4318/v1/logs",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
     })
 
     it("should accept a URL object", () => {
@@ -48,24 +40,12 @@ describe("SignozAdapter Tests", () => {
       signozAdapter = new SignozAdapter(url, Severity.Info)
 
       expect(signozAdapter.url.toString()).toBe("https://signoz.example.com:4318/v1/logs")
-      expect(AxiosApiClient).toHaveBeenCalledWith({
-        baseUrl: "https://signoz.example.com:4318/v1/logs",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
     })
 
     it("should accept a custom route endpoint", () => {
       signozAdapter = new SignozAdapter("http://localhost:8082/custom/endpoint", Severity.Warn)
 
       expect(signozAdapter.url.toString()).toBe("http://localhost:8082/custom/endpoint")
-      expect(AxiosApiClient).toHaveBeenCalledWith({
-        baseUrl: "http://localhost:8082/custom/endpoint",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
     })
 
     it("should default to Severity.Debug if minimumLogLevel is not provided", () => {
@@ -81,7 +61,7 @@ describe("SignozAdapter Tests", () => {
 
       await signozAdapter.trace("Trace message")
 
-      expect(mockApiClient.post).not.toHaveBeenCalled()
+      expect(global.fetch).not.toHaveBeenCalled()
     })
 
     it("should log info when minimumLogLevel is Info", async () => {
@@ -89,7 +69,7 @@ describe("SignozAdapter Tests", () => {
 
       await signozAdapter.info("Info message")
 
-      expect(mockApiClient.post).toHaveBeenCalledWith("", expect.any(Object))
+      expect(global.fetch).toHaveBeenCalled()
     })
 
     it("should not log debug when minimumLogLevel is Info", async () => {
@@ -97,7 +77,7 @@ describe("SignozAdapter Tests", () => {
 
       await signozAdapter.debug("Debug message")
 
-      expect(mockApiClient.post).not.toHaveBeenCalled()
+      expect(global.fetch).not.toHaveBeenCalled()
     })
 
     it("should log error when minimumLogLevel is Warn", async () => {
@@ -105,7 +85,7 @@ describe("SignozAdapter Tests", () => {
 
       await signozAdapter.error("Error message")
 
-      expect(mockApiClient.post).toHaveBeenCalled()
+      expect(global.fetch).toHaveBeenCalled()
     })
   })
 
@@ -117,7 +97,8 @@ describe("SignozAdapter Tests", () => {
     it("should post trace logs to the provided URL", async () => {
       await signozAdapter.trace("Trace message")
 
-      expect(mockApiClient.post).toHaveBeenCalledWith("", {
+      expect(global.fetch).toHaveBeenCalledWith("http://collector:4318/v1/logs", expect.objectContaining({ method: "POST" }))
+      expect(lastFetchBody()).toEqual({
         resourceLogs: [
           {
             scopeLogs: [
@@ -138,7 +119,7 @@ describe("SignozAdapter Tests", () => {
     it("should post debug logs to the provided URL", async () => {
       await signozAdapter.debug("Debug message")
 
-      expect(mockApiClient.post).toHaveBeenCalledWith("", {
+      expect(lastFetchBody()).toEqual({
         resourceLogs: [
           {
             scopeLogs: [
@@ -159,7 +140,7 @@ describe("SignozAdapter Tests", () => {
     it("should post info logs to the provided URL", async () => {
       await signozAdapter.info("Info message")
 
-      expect(mockApiClient.post).toHaveBeenCalledWith("", {
+      expect(lastFetchBody()).toEqual({
         resourceLogs: [
           {
             scopeLogs: [
@@ -180,7 +161,7 @@ describe("SignozAdapter Tests", () => {
     it("should post warn logs to the provided URL", async () => {
       await signozAdapter.warn("Warn message")
 
-      expect(mockApiClient.post).toHaveBeenCalledWith("", {
+      expect(lastFetchBody()).toEqual({
         resourceLogs: [
           {
             scopeLogs: [
@@ -201,7 +182,7 @@ describe("SignozAdapter Tests", () => {
     it("should post error logs to the provided URL", async () => {
       await signozAdapter.error("Error message")
 
-      expect(mockApiClient.post).toHaveBeenCalledWith("", {
+      expect(lastFetchBody()).toEqual({
         resourceLogs: [
           {
             scopeLogs: [
@@ -224,7 +205,7 @@ describe("SignozAdapter Tests", () => {
       error.stack = "Error: Test error\n    at test.js:1:1"
       await signozAdapter.exception("Exception message", error)
 
-      expect(mockApiClient.post).toHaveBeenCalledWith("", {
+      expect(lastFetchBody()).toEqual({
         resourceLogs: [
           {
             scopeLogs: [
@@ -276,7 +257,7 @@ describe("SignozAdapter Tests", () => {
 
       await signozAdapter.info("Test message", options)
 
-      expect(mockApiClient.post).toHaveBeenCalledWith("", {
+      expect(lastFetchBody()).toEqual({
         resourceLogs: [
           {
             resource: {
@@ -315,8 +296,7 @@ describe("SignozAdapter Tests", () => {
         },
       })
 
-      const callArgs = mockApiClient.post.mock.calls[0]
-      const payload = callArgs[1]
+      const payload = lastFetchBody()
       expect(payload.resourceLogs[0]).not.toHaveProperty("resource")
       expect(payload.resourceLogs[0]).toHaveProperty("scopeLogs")
     })
@@ -332,7 +312,7 @@ describe("SignozAdapter Tests", () => {
         extraData: { nullValue: null },
       })
 
-      expect(mockApiClient.post).toHaveBeenCalledWith("", {
+      expect(lastFetchBody()).toEqual({
         resourceLogs: [
           {
             scopeLogs: [
@@ -359,7 +339,7 @@ describe("SignozAdapter Tests", () => {
         extraData: { undefinedValue: undefined },
       })
 
-      expect(mockApiClient.post).toHaveBeenCalledWith("", {
+      expect(lastFetchBody()).toEqual({
         resourceLogs: [
           {
             scopeLogs: [
@@ -394,7 +374,7 @@ describe("SignozAdapter Tests", () => {
 
       await signozAdapter.info("Test message", { exception: error })
 
-      expect(mockApiClient.post).toHaveBeenCalledWith("", {
+      expect(lastFetchBody()).toEqual({
         resourceLogs: [
           {
             scopeLogs: [
@@ -427,7 +407,7 @@ describe("SignozAdapter Tests", () => {
     it("should include exception as string when exception is a string", async () => {
       await signozAdapter.info("Test message", { exception: "String error" as any })
 
-      expect(mockApiClient.post).toHaveBeenCalledWith("", {
+      expect(lastFetchBody()).toEqual({
         resourceLogs: [
           {
             scopeLogs: [
@@ -452,7 +432,7 @@ describe("SignozAdapter Tests", () => {
     it("should flatten exception object when exception is an object", async () => {
       await signozAdapter.info("Test message", { exception: { code: 500, type: "server" } as any })
 
-      expect(mockApiClient.post).toHaveBeenCalledWith("", {
+      expect(lastFetchBody()).toEqual({
         resourceLogs: [
           {
             scopeLogs: [
@@ -484,7 +464,7 @@ describe("SignozAdapter Tests", () => {
 
       await signozAdapter.info("Test message", { exception: error })
 
-      expect(mockApiClient.post).toHaveBeenCalledWith("", {
+      expect(lastFetchBody()).toEqual({
         resourceLogs: [
           {
             scopeLogs: [
@@ -505,8 +485,7 @@ describe("SignozAdapter Tests", () => {
         ],
       })
 
-      const callArgs = mockApiClient.post.mock.calls[0]
-      const payload = callArgs[1]
+      const payload = lastFetchBody()
       const attributes = payload.resourceLogs[0].scopeLogs[0].logRecords[0].attributes
       expect(attributes.find((attr: any) => attr.key === "exception_stack")).toBeUndefined()
     })
@@ -523,11 +502,7 @@ describe("SignozAdapter Tests", () => {
     })
 
     it("should log error when API call fails", async () => {
-      mockApiClient.post.mockResolvedValue({
-        success: false,
-        message: "API Error",
-        data: "Error details",
-      })
+      mockFetchError("API Error", "Error details")
 
       const result = await (signozAdapter as any).captureMessage("Test", SignozSeverity.Info)
 
@@ -536,11 +511,7 @@ describe("SignozAdapter Tests", () => {
     })
 
     it("should return true when API call succeeds", async () => {
-      mockApiClient.post.mockResolvedValue({
-        success: true,
-        message: "Success",
-        data: {},
-      })
+      mockFetchOk()
 
       const result = await (signozAdapter as any).captureMessage("Test", SignozSeverity.Info)
 

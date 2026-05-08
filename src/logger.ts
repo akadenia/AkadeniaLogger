@@ -1,4 +1,3 @@
-import { AkadeniaApiResponse } from "@akadenia/api"
 import { createDetailedObjectSummary } from "./serialization"
 
 export enum Severity {
@@ -9,10 +8,17 @@ export enum Severity {
   Error,
 }
 
+export type ApiResponse = {
+  status?: number
+  statusText?: string
+  message?: string
+  data?: any
+}
+
 export type Options = {
   forceConsole?: boolean
   extraData?: any
-  response?: AkadeniaApiResponse
+  response?: ApiResponse
   exception?: Error
   signozPayload?: any
 }
