@@ -32,9 +32,9 @@ jobs:
 
           # Rule: type(scope): subject
           #   - type    : one of the allowed types above
-          #   - scope   : required, alphanumeric + hyphens/dots/slashes/spaces/$/*
+          #   - scope   : optional, alphanumeric + hyphens/dots/slashes/spaces/$/*
           #   - subject : non-empty (any casing allowed)
-          PATTERN="^($TYPES)\([-a-zA-Z0-9\$.*/ ]+\): .+$"
+          PATTERN="^($TYPES)(\([-a-zA-Z0-9\$.*/ ]+\))?: .+$"
 
           if ! echo "$PR_TITLE" | grep -qE "$PATTERN"; then
             echo ""
@@ -42,25 +42,27 @@ jobs:
             echo ""
             echo "   Title : \"$PR_TITLE\""
             echo ""
-            echo "   Required format : type(scope): subject"
+            echo "   Required format : type[(scope)]: subject"
             echo "   Allowed types   : build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test"
             echo "   Rules:"
-            echo "     - scope is required"
+            echo "     - scope is optional"
             echo ""
             echo "   Examples:"
             echo "     ✅  feat(auth): add OAuth2 support"
-            echo "     ✅  fix(api): Handle empty response body"
-            echo "     ❌  feat: missing scope"
+            echo "     ✅  fix: handle empty response body"
+            echo "     ❌  feat(core): disallowed scope"
             exit 1
           fi
 
-          # Disallow scope "core" (trim whitespace before comparing)
-          SCOPE=$(echo "$PR_TITLE" | sed -E "s/^[a-z]+\(([^)]+)\):.*/\1/" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-          if [ "$SCOPE" = "core" ]; then
-            echo ""
-            echo "❌ The scope \"core\" is not allowed."
-            echo "   Title : \"$PR_TITLE\""
-            exit 1
+          # Disallow scope "core" if scope is present (trim whitespace before comparing)
+          if echo "$PR_TITLE" | grep -qE "^\($TYPES\)\(.*\):"; then
+            SCOPE=$(echo "$PR_TITLE" | sed -E "s/^[a-z]+\(([^)]+)\):.*/\1/" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            if [ "$SCOPE" = "core" ]; then
+              echo ""
+              echo "❌ The scope \"core\" is not allowed."
+              echo "   Title : \"$PR_TITLE\""
+              exit 1
+            fi
           fi
 
           echo "✅ PR title is valid: \"$PR_TITLE\""
