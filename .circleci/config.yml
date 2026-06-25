@@ -15,10 +15,10 @@ jobs:
       - node/install:
           node-version: << parameters.node-version >>
       - node/install-packages:
-          pkg-manager: npm
-      - run: npm run build
-      - run: npm run lint
-      - run: npm run test --if-present
+          pkg-manager: pnpm
+      - run: pnpm build
+      - run: pnpm lint
+      - run: pnpm run --if-present test
 
   build_lint_test:
     docker:
@@ -37,8 +37,8 @@ jobs:
       - node/install:
           node-version: "22"
       - node/install-packages:
-          pkg-manager: npm
-      - run: npm run build
+          pkg-manager: pnpm
+      - run: pnpm build
       - run:
           name: Semantic Release
           command: npx semantic-release
