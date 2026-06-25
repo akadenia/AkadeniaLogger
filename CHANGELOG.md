@@ -1,3 +1,10 @@
+# [2.1.0](https://github.com/akadenia/AkadeniaLogger/compare/v2.0.1...v2.1.0) (2026-06-25)
+
+
+### Features
+
+* **ci:** make PR title scope optional in linter ([#66](https://github.com/akadenia/AkadeniaLogger/issues/66)) ([28d3ecb](https://github.com/akadenia/AkadeniaLogger/commit/28d3ecbcd3a42094e2f8b1239963128bb25cdaab))
+
 ## [2.0.1](https://github.com/akadenia/AkadeniaLogger/compare/v2.0.0...v2.0.1) (2026-03-25)
 
 
