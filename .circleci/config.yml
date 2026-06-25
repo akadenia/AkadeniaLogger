@@ -14,8 +14,14 @@ jobs:
       - checkout
       - node/install:
           node-version: << parameters.node-version >>
-      - node/install-packages:
-          pkg-manager: pnpm
+      - run:
+          name: Enable corepack and install pnpm
+          command: |
+            corepack enable
+            corepack prepare pnpm@latest --activate
+      - run:
+          name: Install dependencies
+          command: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm lint
       - run: pnpm run --if-present test
@@ -36,8 +42,14 @@ jobs:
       - checkout
       - node/install:
           node-version: "22"
-      - node/install-packages:
-          pkg-manager: pnpm
+      - run:
+          name: Enable corepack and install pnpm
+          command: |
+            corepack enable
+            corepack prepare pnpm@latest --activate
+      - run:
+          name: Install dependencies
+          command: pnpm install --frozen-lockfile
       - run: pnpm build
       - run:
           name: Semantic Release
