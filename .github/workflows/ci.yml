@@ -21,6 +21,8 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
+      - run: cat .npmrc
+      - run: pnpm config list
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm lint
