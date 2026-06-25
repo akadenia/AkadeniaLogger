@@ -15,10 +15,8 @@ jobs:
       - node/install:
           node-version: << parameters.node-version >>
       - run:
-          name: Enable corepack and install pnpm
-          command: |
-            corepack enable
-            corepack prepare pnpm@latest --activate
+          name: Install pnpm
+          command: npm install -g pnpm
       - run:
           name: Install dependencies
           command: pnpm install --frozen-lockfile
@@ -43,10 +41,8 @@ jobs:
       - node/install:
           node-version: "22"
       - run:
-          name: Enable corepack and install pnpm
-          command: |
-            corepack enable
-            corepack prepare pnpm@latest --activate
+          name: Install pnpm
+          command: npm install -g pnpm
       - run:
           name: Install dependencies
           command: pnpm install --frozen-lockfile
