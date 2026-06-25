@@ -1,20 +1,22 @@
 version: 2.1
 
+orbs:
+  node: circleci/node@7.2.1
+
 jobs:
   build_lint_test_node:
     parameters:
       node-version:
         type: string
     docker:
-      - image: cimg/node:<< parameters.node-version >>
+      - image: cimg/base:current
     steps:
       - checkout
-      - run:
-          name: Install pnpm
-          command: npm install -g pnpm
-      - run:
-          name: Install dependencies
-          command: pnpm install --frozen-lockfile
+      - node/install:
+          node-version: << parameters.node-version >>
+          install-pnpm: true
+      - node/install-packages:
+          pkg-manager: pnpm
       - run: pnpm build
       - run: pnpm lint
       - run: pnpm run --if-present test
@@ -27,18 +29,17 @@ jobs:
 
   release:
     docker:
-      - image: cimg/node:22.23
+      - image: cimg/base:current
     environment:
       CI: "true"
       HUSKY: "0"
     steps:
       - checkout
-      - run:
-          name: Install pnpm
-          command: npm install -g pnpm
-      - run:
-          name: Install dependencies
-          command: pnpm install --frozen-lockfile
+      - node/install:
+          node-version: "22"
+          install-pnpm: true
+      - node/install-packages:
+          pkg-manager: pnpm
       - run: pnpm build
       - run:
           name: Semantic Release
@@ -74,7 +75,7 @@ workflows:
       - build_lint_test_node:
           matrix:
             parameters:
-              node-version: ["22.23", "24.18", "26.3"]
+              node-version: ["22", "24", "26"]
       - build_lint_test:
           requires:
             - build_lint_test_node
