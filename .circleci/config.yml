@@ -1,19 +1,14 @@
 version: 2.1
 
-orbs:
-  node: circleci/node@7.2.1
-
 jobs:
   build_lint_test_node:
     parameters:
       node-version:
         type: string
     docker:
-      - image: cimg/base:current
+      - image: node:<< parameters.node-version >>
     steps:
       - checkout
-      - node/install:
-          node-version: << parameters.node-version >>
       - run:
           name: Install pnpm
           command: npm install -g pnpm
@@ -32,14 +27,12 @@ jobs:
 
   release:
     docker:
-      - image: cimg/base:current
+      - image: node:22
     environment:
       CI: "true"
       HUSKY: "0"
     steps:
       - checkout
-      - node/install:
-          node-version: "22"
       - run:
           name: Install pnpm
           command: npm install -g pnpm
@@ -62,7 +55,7 @@ jobs:
                 --arg body "Merge release ${VERSION} assets" \
                 '{title: $title, head: $head, base: $base, body: $body}')
               RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-                -H "Authorization: Bearer $GH_TOKEN" \
+                -H "Authorization: Bearer $GITHUB_TOKEN" \
                 -H "Accept: application/vnd.github+json" \
                 "https://api.github.com/repos/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/pulls" \
                 -d "$PAYLOAD")
