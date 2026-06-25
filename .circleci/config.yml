@@ -73,7 +73,7 @@ workflows:
       - build_lint_test_node:
           matrix:
             parameters:
-              node-version: ["20", "22", "24"]
+              node-version: ["22", "24", "26"]
       - build_lint_test:
           requires:
             - build_lint_test_node
