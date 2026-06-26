@@ -11,13 +11,13 @@ Rules for any agent (human or AI) working in this repository.
 
 ## PR Titles
 
-Conventional Commits with a required scope, enforced by `check_pr_title_style.yml`:
+Conventional Commits with an optional scope, enforced by `check_pr_title_style.yml`:
 
 ```text
-type(scope): lowercase subject
+type(optional-scope): lowercase subject
 ```
 
-- **Scope is mandatory** — `feat: missing scope` will fail CI
+- **Scope is optional** — `feat: add new feature` is valid
 - Disallowed scope: `core`
 - Allowed types: `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `style`, `test`
 
@@ -26,7 +26,7 @@ Examples:
 ✅  feat(helpers): add string truncation utility
 ✅  fix(api): handle empty response body
 ✅  chore(deps): upgrade dependencies to latest
-❌  feat: missing scope
+✅  feat: add new feature without scope
 ❌  feat(core): disallowed scope
 ```
 
