@@ -6,7 +6,7 @@ Rules for any agent (human or AI) working in this repository.
 
 - **Branch from `main`** for all changes
 - **PRs always target `main`**
-- Always add `@guy-shahine` as reviewer — he is the code owner for all files (`CODEOWNERS: * @guy-shahine`)
+- Always add `@guy-shahine` and `@akadenia-leaf` as reviewers — Guy is the code owner for all files (`CODEOWNERS: * @guy-shahine`)
 - Check `gh pr list` before creating a new PR — never duplicate an open PR
 
 ## PR Titles

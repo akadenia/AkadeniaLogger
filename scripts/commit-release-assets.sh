@@ -28,6 +28,7 @@ git checkout -b $BRANCH_NAME
 git add package.json pnpm-lock.yaml CHANGELOG.md
 git commit -m "chore(release): add release assets from $VERSION"
 
-# Push branch to the remote
+# Push branch to the remote using GH_TOKEN for authentication
+git remote set-url origin "https://${GH_TOKEN}@github.com/akadenia/AkadeniaLogger.git"
 git push origin $BRANCH_NAME
 
