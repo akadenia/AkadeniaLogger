@@ -42,15 +42,17 @@ jobs:
             echo ""
             echo "   Title : \"$PR_TITLE\""
             echo ""
-            echo "   Required format : type[(scope)]: subject"
+            echo "   Required format : type[(scope)]: lowercase subject"
             echo "   Allowed types   : build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test"
             echo "   Rules:"
             echo "     - scope is optional"
+            echo "     - subject must be lowercase"
             echo ""
             echo "   Examples:"
             echo "     ✅  feat(auth): add OAuth2 support"
             echo "     ✅  fix: handle empty response body"
             echo "     ❌  feat(core): disallowed scope"
+            echo "     ❌  feat(auth): Add OAuth2 support"
             exit 1
           fi
 

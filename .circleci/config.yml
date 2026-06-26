@@ -1,46 +1,37 @@
 version: 2.1
 
-orbs:
-  node: circleci/node@7.2.1
-
 jobs:
   build_lint_test_node:
     parameters:
-      node-version:
+      docker-image:
         type: string
     docker:
-      - image: cimg/base:current
+      - image: << parameters.docker-image >>
     steps:
       - checkout
-      - node/install:
-          node-version: << parameters.node-version >>
-          install-pnpm: true
-      - node/install-packages:
-          pkg-manager: pnpm
-      - run: pnpm build
-      - run: pnpm lint
+      - run: sudo corepack enable
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm run build
+      - run: pnpm run lint
       - run: pnpm run --if-present test
 
   build_lint_test:
     docker:
-      - image: cimg/base:current
+      - image: cimg/node:current
     steps:
       - run: echo "All node version tests passed"
 
   release:
     docker:
-      - image: cimg/base:current
+      - image: cimg/node:current
     environment:
       CI: "true"
       HUSKY: "0"
     steps:
       - checkout
-      - node/install:
-          node-version: "22"
-          install-pnpm: true
-      - node/install-packages:
-          pkg-manager: pnpm
-      - run: pnpm build
+      - run: sudo corepack enable
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm run build
       - run:
           name: Semantic Release
           command: npx semantic-release
@@ -62,11 +53,16 @@ jobs:
                 -d "$PAYLOAD")
               HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
               BODY=$(echo "$RESPONSE" | head -n -1)
-              if [ "$HTTP_CODE" != "201" ] && [ "$HTTP_CODE" != "422" ]; then
-                echo "PR creation failed (HTTP $HTTP_CODE): $BODY"
-                exit 1
+              if [ "$HTTP_CODE" = "201" ]; then
+                echo "PR created successfully (HTTP 201): $BODY"
+                exit 0
               fi
-              echo "PR creation response (HTTP $HTTP_CODE): $BODY"
+              if [ "$HTTP_CODE" = "422" ] && echo "$BODY" | grep -q "pull request already exists"; then
+                echo "PR already exists (HTTP 422): $BODY"
+                exit 0
+              fi
+              echo "PR creation failed (HTTP $HTTP_CODE): $BODY"
+              exit 1
             fi
 
 workflows:
@@ -75,7 +71,7 @@ workflows:
       - build_lint_test_node:
           matrix:
             parameters:
-              node-version: ["22", "24", "26"]
+              docker-image: ["cimg/node:22.0", "cimg/node:24.0", "cimg/node:current"]
       - build_lint_test:
           requires:
             - build_lint_test_node

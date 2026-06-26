@@ -41,9 +41,9 @@ Examples:
 Before every push, run all three and fix any failures:
 
 ```bash
-npm run lint
-npm test
-npm run build
+pnpm run lint
+pnpm run test
+pnpm run build
 ```
 
 Never use `--no-verify`. No exceptions.
@@ -62,7 +62,7 @@ Do not manually bump versions in `package.json`.
 ## TypeScript
 
 - Keep TypeScript at `^5.x` — **do not upgrade to TypeScript 6.x** until `ts-jest` adds support
-- Build with `npm run build` (compiles to `dist/`)
+- Build with `pnpm run build` (compiles to `dist/`)
 
 ## Testing
 
