@@ -1,3 +1,16 @@
+# [3.2.0](https://github.com/akadenia/AkadeniaLogger/compare/3.1.1...3.2.0) (2026-06-29)
+
+
+### Bug Fixes
+
+* align CI and scripts with Akadenia standards ([#70](https://github.com/akadenia/AkadeniaLogger/issues/70)) ([8233446](https://github.com/akadenia/AkadeniaLogger/commit/8233446165fe07500af9f3446363dffbfab5156c))
+* **release:** replace @semantic-release/git with PR-based release asset workflow ([#63](https://github.com/akadenia/AkadeniaLogger/issues/63)) ([f76d7d2](https://github.com/akadenia/AkadeniaLogger/commit/f76d7d219ca9fcb7c38a4093842c889e312ac040))
+
+
+### Features
+
+* **ci:** make PR title scope optional in linter ([#66](https://github.com/akadenia/AkadeniaLogger/issues/66)) ([28d3ecb](https://github.com/akadenia/AkadeniaLogger/commit/28d3ecbcd3a42094e2f8b1239963128bb25cdaab))
+
 # [2.1.0](https://github.com/akadenia/AkadeniaLogger/compare/v2.0.1...v2.1.0) (2026-06-25)
 
 
