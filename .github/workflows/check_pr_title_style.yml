@@ -55,7 +55,7 @@ jobs:
           fi
 
           # Disallow scope "core" if scope is present (trim whitespace before comparing)
-          if echo "$PR_TITLE" | grep -qE "^\($TYPES\)\(.*\):"; then
+          if echo "$PR_TITLE" | grep -qE "^($TYPES)\(.*\):"; then
             SCOPE=$(echo "$PR_TITLE" | sed -E "s/^[a-z]+\(([^)]+)\):.*/\1/" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
             if [ "$SCOPE" = "core" ]; then
               echo ""

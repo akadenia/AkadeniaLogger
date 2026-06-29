@@ -62,11 +62,19 @@ jobs:
                 -d "$PAYLOAD")
               HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
               BODY=$(echo "$RESPONSE" | head -n -1)
-              if [ "$HTTP_CODE" != "201" ] && [ "$HTTP_CODE" != "422" ]; then
+              if [ "$HTTP_CODE" = "201" ]; then
+                echo "Release PR created successfully."
+              elif [ "$HTTP_CODE" = "422" ]; then
+                if echo "$BODY" | grep -qi "pull request already exists"; then
+                  echo "Release PR already exists — skipping."
+                else
+                  echo "PR creation failed with unexpected 422: $BODY"
+                  exit 1
+                fi
+              else
                 echo "PR creation failed (HTTP $HTTP_CODE): $BODY"
                 exit 1
               fi
-              echo "PR creation response (HTTP $HTTP_CODE): $BODY"
             fi
 
 workflows:
