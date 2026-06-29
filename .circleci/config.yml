@@ -19,7 +19,7 @@ jobs:
           pkg-manager: pnpm
       - run: pnpm build
       - run: pnpm lint
-      - run: pnpm run --if-present test
+      - run: pnpm test
 
   build_lint_test:
     docker:
