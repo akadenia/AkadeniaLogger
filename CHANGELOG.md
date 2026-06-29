@@ -1,3 +1,10 @@
+## [3.2.1](https://github.com/akadenia/AkadeniaLogger/compare/3.2.0...3.2.1) (2026-06-29)
+
+
+### Bug Fixes
+
+* unify CI scripts ([#71](https://github.com/akadenia/AkadeniaLogger/issues/71)) ([9aaf59d](https://github.com/akadenia/AkadeniaLogger/commit/9aaf59de8f56a55cb9981c7ca893773cf2db8c27))
+
 # [2.1.0](https://github.com/akadenia/AkadeniaLogger/compare/v2.0.1...v2.1.0) (2026-06-25)
 
 
