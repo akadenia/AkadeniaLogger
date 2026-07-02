@@ -1,3 +1,10 @@
+## [3.2.2](https://github.com/akadenia/AkadeniaLogger/compare/3.2.1...3.2.2) (2026-06-29)
+
+
+### Bug Fixes
+
+* standardize test command to pnpm test ([#73](https://github.com/akadenia/AkadeniaLogger/issues/73)) ([2bbf1bc](https://github.com/akadenia/AkadeniaLogger/commit/2bbf1bc69684ea1a991bca6f317a598b4520a664))
+
 ## [3.2.1](https://github.com/akadenia/AkadeniaLogger/compare/3.2.0...3.2.1) (2026-06-29)
 
 
