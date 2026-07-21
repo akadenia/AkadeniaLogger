@@ -1,3 +1,17 @@
+## [3.2.3](https://github.com/akadenia/AkadeniaLogger/compare/3.2.2...3.2.3) (2026-07-21)
+
+
+### Bug Fixes
+
+* **ci:** consolidate release PR creation into commit-release-assets.sh ([#78](https://github.com/akadenia/AkadeniaLogger/issues/78)) ([1ecda2a](https://github.com/akadenia/AkadeniaLogger/commit/1ecda2ac87f205cd4cd38341f5300fdd0d94c343))
+
+## [3.2.2](https://github.com/akadenia/AkadeniaLogger/compare/3.2.1...3.2.2) (2026-06-29)
+
+
+### Bug Fixes
+
+* standardize test command to pnpm test ([#73](https://github.com/akadenia/AkadeniaLogger/issues/73)) ([2bbf1bc](https://github.com/akadenia/AkadeniaLogger/commit/2bbf1bc69684ea1a991bca6f317a598b4520a664))
+
 ## [3.2.1](https://github.com/akadenia/AkadeniaLogger/compare/3.2.0...3.2.1) (2026-06-29)
 
 
