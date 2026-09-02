@@ -19,7 +19,7 @@
 - **Built-in Console Logging**: Configurable console output with level filtering
 - **Predefined Events**: Common analytics scenarios like Login, Share, AppOpen, Search
 - **Exception Handling**: Automatic stack trace capture and error logging
-- **Metadata Support**: Rich context via `extraData`, `response`, and `signozPayload`
+- **Metadata Support**: Rich context via `extraData`, `response`, `signozPayload`, and `attachments`
 - **Log Sanitization**: Newlines, tabs, and non-printable characters are stripped before sending to adapters to prevent log injection
 - **Resilient Adapters**: Adapter errors are silently absorbed — a broken integration won't crash your app
 - **TypeScript Support**: Full type definitions and type safety
@@ -115,12 +115,19 @@ Each adapter has its own `minimumLogLevel` — messages below the threshold are 
 All log methods accept an optional `Options` object:
 
 ```typescript
+type Attachment = {
+  filename: string
+  data: string | Uint8Array
+  contentType?: string                // Optional MIME type (e.g. text/plain, image/png)
+}
+
 type Options = {
   extraData?: any                     // Structured metadata attached to the log
   response?: AkadeniaApiResponse      // API response (trimmed before sending to adapters)
   exception?: Error                   // Error object for exception/fatal captures
   forceConsole?: boolean              // Override consoleEnabled for this call
   signozPayload?: any                 // SignOz-specific OTLP fields (trace_id, span_id, resources, attributes, etc.)
+  attachments?: Attachment[]          // Files attached to this log (filename, data, optional contentType)
 }
 ```
 
@@ -179,7 +186,33 @@ const sentryAdapter = new SentryAdapter(Sentry, Severity.Warn)
 logger.addLogger(sentryAdapter)
 ```
 
-> The Sentry adapter automatically handles Sentry's 16KB payload limit — it truncates `response.data` first, then the full payload if needed. Sensitive keys (`auth`, `token`, `password`, `secret`, etc.) are masked before sending.
+File attachments are part of the shared `Options` API — you attach files to a log, and each adapter decides what to do with them. Sentry uploads each file on the event. SignOz and Firebase ignore attachment bytes for now (the same `attachments` field is the extension point when those backends add file support).
+
+```typescript
+logger.exception("PDF export failed", error as Error, {
+  extraData: { orderId: "ORD-123" },
+  attachments: [
+    {
+      filename: "export-log.txt",
+      data: "log content here",
+      contentType: "text/plain",
+    },
+    {
+      filename: "screenshot.png",
+      data: pngBytes, // Uint8Array
+      contentType: "image/png",
+    },
+  ],
+})
+
+logger.error("Failed to process file", {
+  attachments: [{ filename: "input.json", data: JSON.stringify(payload), contentType: "application/json" }],
+})
+```
+
+> If combined `extraData` + `response` JSON is over 2KB, Sentry extra is replaced with `EXTRA DATA INCLUDED AS FILE ATTACHMENT, CHECK ATTACHMENTS SECTION` and the full payload is attached as `extra-data.json`. Auto-attachments are capped at 5MB so a huge dump cannot reject the event. Sensitive keys (`auth`, `token`, `password`, `secret`, etc.) are masked before sending.
+
+> Consumer `attachments` are sent as-is. Sentry enforces roughly 40MB compressed / 200MB uncompressed per event; oversized uploads are rejected with HTTP 413. Unlike auto-promoted extra data, user attachments are not truncated by this library — keep attachment sizes within Sentry's limits.
 
 ### SignOz (OpenTelemetry)
 

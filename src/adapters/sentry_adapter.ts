@@ -1,5 +1,11 @@
-import { Severity, ILogger, Options, ApiResponse } from "../logger"
+import { Severity, ILogger, Options, ApiResponse, Attachment } from "../logger"
 import { Client, Scope, SeverityLevel } from "@sentry/types"
+
+const EXTRA_ATTACHMENT_THRESHOLD_BYTES = 2 * 1024
+const AUTO_ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024
+const EXTRA_DATA_ATTACHMENT_FILENAME = "extra-data.json"
+const EXTRA_DATA_ATTACHMENT_NOTICE = "EXTRA DATA INCLUDED AS FILE ATTACHMENT, CHECK ATTACHMENTS SECTION"
+const ATTACHMENT_TRUNCATED_SUFFIX = "... [ATTACHMENT TRUNCATED]"
 
 export enum SentrySeverity {
   Debug = "debug",
@@ -39,7 +45,6 @@ export class SentryAdapter implements ILogger {
   }
 
   private processData(extraData: any, response?: ApiResponse): any {
-    // Accommodate extraData first (Sentry has 16kb limit)
     const processedData: any = { ...(extraData || {}) }
 
     // Add trimmed response if provided
@@ -103,67 +108,76 @@ export class SentryAdapter implements ILogger {
     return str.substring(0, bestFit)
   }
 
-  private truncateDataIfNeeded(processedData: any): string {
-    const SENTRY_MAX_SIZE = 16 * 1024 // 16kb in bytes
+  private prepareExtraData(processedData: any): { extraString: string; autoAttachment?: Attachment } {
     const encoder = new TextEncoder()
-    let dataString = this.safeStringify(processedData, 4)
-    let dataSize = encoder.encode(dataString).length
+    const dataString = this.safeStringify(processedData, 4)
+    const dataSize = encoder.encode(dataString).length
 
-    if (dataSize > SENTRY_MAX_SIZE) {
-      // Create a deep copy to avoid mutating the original object
-      const dataCopy = JSON.parse(this.safeStringify(processedData))
-
-      // If there's a response with data, try to truncate just the response.data first
-      if (processedData.response?.data) {
-        const tempData = JSON.parse(this.safeStringify(dataCopy))
-        delete tempData.response.data
-        const baseSize = encoder.encode(this.safeStringify(tempData, 4)).length
-        const availableSpace = SENTRY_MAX_SIZE - baseSize - 100 // Reserve 100 bytes for truncation indicator
-
-        if (availableSpace > 0) {
-          const dataStr = this.safeStringify(dataCopy.response.data)
-          const dataBytes = encoder.encode(dataStr)
-
-          if (dataBytes.length > availableSpace) {
-            // Truncate response.data to fit within limit using byte-based truncation
-            const truncated = this.truncateToByteSize(dataStr, availableSpace - 20) // Reserve space for truncation indicator
-            dataCopy.response.data = `${truncated}... [TRUNCATED]`
-            dataCopy.response._dataTruncated = true
-            dataString = this.safeStringify(dataCopy, 4)
-            dataSize = encoder.encode(dataString).length
-          }
-        } else {
-          dataCopy.response.data = "[Removed - Exceeds size limit]"
-          dataCopy.response._dataTruncated = true
-          dataString = this.safeStringify(dataCopy, 4)
-          dataSize = encoder.encode(dataString).length
-        }
-      } else {
-        // No response.data to truncate, truncate the entire payload using byte-based truncation
-        const truncated = this.truncateToByteSize(dataString, SENTRY_MAX_SIZE - 50)
-        dataString = `${truncated}... [TRUNCATED - extraData]`
-        dataSize = encoder.encode(dataString).length
-      }
-
-      // Final safety check: ensure payload is actually capped at 16KB after any adjustments
-      if (dataSize > SENTRY_MAX_SIZE) {
-        const truncated = this.truncateToByteSize(dataString, SENTRY_MAX_SIZE - 50)
-        dataString = `${truncated}... [TRUNCATED - FINAL]`
-      }
+    if (dataSize <= EXTRA_ATTACHMENT_THRESHOLD_BYTES) {
+      return { extraString: dataString }
     }
 
-    return dataString
+    const attachmentTruncated = dataSize > AUTO_ATTACHMENT_MAX_BYTES
+    let attachmentData = dataString
+
+    if (attachmentTruncated) {
+      const reservedBytes = encoder.encode(ATTACHMENT_TRUNCATED_SUFFIX).length
+      attachmentData = `${this.truncateToByteSize(dataString, AUTO_ATTACHMENT_MAX_BYTES - reservedBytes)}${ATTACHMENT_TRUNCATED_SUFFIX}`
+    }
+
+    return {
+      extraString: EXTRA_DATA_ATTACHMENT_NOTICE,
+      autoAttachment: {
+        filename: EXTRA_DATA_ATTACHMENT_FILENAME,
+        data: attachmentData,
+        contentType: "application/json",
+      },
+    }
+  }
+
+  private normalizeAttachmentData(data: unknown): string | Uint8Array | null {
+    if (typeof data === "string") return data
+    if (data instanceof Uint8Array) return data
+    if (typeof Buffer !== "undefined" && Buffer.isBuffer(data)) return new Uint8Array(data)
+    return null
+  }
+
+  private processAttachments(attachments: Attachment[]): Attachment[] {
+    const processed: Attachment[] = []
+
+    for (const attachment of attachments) {
+      if (!attachment?.filename || typeof attachment.filename !== "string" || !attachment.filename.trim()) {
+        continue
+      }
+
+      const data = this.normalizeAttachmentData(attachment.data)
+      if (data === null) continue
+
+      processed.push({
+        filename: attachment.filename,
+        data,
+        ...(attachment.contentType !== undefined && { contentType: attachment.contentType }),
+      })
+    }
+
+    return processed
   }
 
   private captureMessage(message: string, severity: SeverityLevel, options?: Options) {
     this.Sentry.withScope((scope: Scope) => {
       if (options?.extraData || options?.response) {
-        // Process extraData and response together
         const processedData = this.processData(options.extraData, options.response)
+        const { extraString, autoAttachment } = this.prepareExtraData(processedData)
+        scope.setExtra("extra-data", extraString)
+        if (autoAttachment) {
+          scope.addAttachment(autoAttachment)
+        }
+      }
 
-        // Always check size limits to prevent exceeding Sentry's 16KB limit
-        const dataString = this.truncateDataIfNeeded(processedData)
-        scope.setExtra("extra-data", dataString)
+      if (options?.attachments?.length) {
+        for (const attachment of this.processAttachments(options.attachments)) {
+          scope.addAttachment(attachment)
+        }
       }
 
       if (severity === SentrySeverity.Fatal && options?.exception) {

@@ -485,4 +485,22 @@ describe("Logger adapter message sanitization", () => {
     expect(mockAdapter1.error).toHaveBeenCalledWith("Error Message", undefined)
     expect(mockAdapter2.error).toHaveBeenCalledWith("Error Message", undefined)
   })
+
+  it("should forward attachments to adapters unchanged", () => {
+    const logger = new Logger()
+    const mockAdapter: any = {
+      error: jest.fn(),
+      name: "mock",
+      minimumLogLevel: Severity.Trace,
+    }
+
+    logger.addLogger(mockAdapter)
+    const options = {
+      attachments: [{ filename: "dump.json", data: '{"ok":true}', contentType: "application/json" }],
+    }
+
+    logger.error("Failed to process file", options)
+
+    expect(mockAdapter.error).toHaveBeenCalledWith("Failed to process file", options)
+  })
 })

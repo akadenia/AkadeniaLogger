@@ -1,5 +1,11 @@
 import { createDetailedObjectSummary } from "./serialization"
 
+export type Attachment = {
+  filename: string
+  data: string | Uint8Array
+  contentType?: string
+}
+
 export enum Severity {
   Trace = 1,
   Debug,
@@ -21,6 +27,7 @@ export type Options = {
   response?: ApiResponse
   exception?: Error
   signozPayload?: any
+  attachments?: Attachment[]
 }
 
 export type Config = {
