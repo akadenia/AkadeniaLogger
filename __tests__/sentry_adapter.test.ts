@@ -253,15 +253,15 @@ describe("SentryAdapter Tests", () => {
         .map((call: any[]) => call[0])
         .find((attachment: any) => attachment.filename === "extra-data.json")
 
-    it("should keep extraData under 2KB in extra only", () => {
+    it("should keep extraData under 16KB in extra only", () => {
       sentryAdapter.error("Test error", { extraData: { userId: "12345" } })
 
       expect(mockScope.setExtra).toHaveBeenCalledWith("extra-data", expect.stringContaining('"userId": "12345"'))
       expect(extraDataAttachment()).toBeUndefined()
     })
 
-    it("should attach extra-data.json and replace extra with a pointer when extraData is over 2KB", () => {
-      const payload = "x".repeat(3000)
+    it("should attach extra-data.json and replace extra with a pointer when extraData is over 16KB", () => {
+      const payload = "x".repeat(20 * 1024)
       sentryAdapter.error("Test error", { extraData: { payload } })
 
       const extra = mockScope.setExtra.mock.calls.find((call: any[]) => call[0] === "extra-data")?.[1] as string
@@ -273,17 +273,6 @@ describe("SentryAdapter Tests", () => {
         data: expect.stringContaining(payload),
         contentType: "application/json",
       })
-    })
-
-    it("should attach the full JSON when extraData is over 16KB", () => {
-      const payload = "x".repeat(20 * 1024)
-      sentryAdapter.error("Test error", { extraData: { payload } })
-
-      const extra = mockScope.setExtra.mock.calls.find((call: any[]) => call[0] === "extra-data")?.[1] as string
-      const attachment = extraDataAttachment()
-
-      expect(extra).toBe("EXTRA DATA INCLUDED AS FILE ATTACHMENT, CHECK ATTACHMENTS SECTION")
-      expect(attachment.data).toContain(payload)
       expect(attachment.data).not.toContain("[TRUNCATED - extraData]")
     })
 
@@ -302,7 +291,7 @@ describe("SentryAdapter Tests", () => {
 
     it("should add both user attachments and extra-data.json for oversized extraData", () => {
       sentryAdapter.error("Test error", {
-        extraData: { payload: "x".repeat(3000) },
+        extraData: { payload: "x".repeat(20 * 1024) },
         attachments: [{ filename: "user.txt", data: "hello" }],
       })
 

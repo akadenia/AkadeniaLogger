@@ -1,7 +1,7 @@
 import { Severity, ILogger, Options, ApiResponse, Attachment } from "../logger"
 import { Client, Scope, SeverityLevel } from "@sentry/types"
 
-const EXTRA_ATTACHMENT_THRESHOLD_BYTES = 2 * 1024
+const EXTRA_ATTACHMENT_THRESHOLD_BYTES = 16 * 1024
 const AUTO_ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024
 const EXTRA_DATA_ATTACHMENT_FILENAME = "extra-data.json"
 const EXTRA_DATA_ATTACHMENT_NOTICE = "EXTRA DATA INCLUDED AS FILE ATTACHMENT, CHECK ATTACHMENTS SECTION"

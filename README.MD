@@ -210,7 +210,7 @@ logger.error("Failed to process file", {
 })
 ```
 
-> If combined `extraData` + `response` JSON is over 2KB, Sentry extra is replaced with `EXTRA DATA INCLUDED AS FILE ATTACHMENT, CHECK ATTACHMENTS SECTION` and the full payload is attached as `extra-data.json`. Auto-attachments are capped at 5MB so a huge dump cannot reject the event. Sensitive keys (`auth`, `token`, `password`, `secret`, etc.) are masked before sending.
+> If combined `extraData` + `response` JSON is over 16KB (Sentry's extra-item limit), Sentry extra is replaced with `EXTRA DATA INCLUDED AS FILE ATTACHMENT, CHECK ATTACHMENTS SECTION` and the full payload is attached as `extra-data.json`. Auto-attachments are capped at 5MB so a huge dump cannot reject the event. Sensitive keys (`auth`, `token`, `password`, `secret`, etc.) are masked before sending.
 
 > Consumer `attachments` are sent as-is. Sentry enforces roughly 40MB compressed / 200MB uncompressed per event; oversized uploads are rejected with HTTP 413. Unlike auto-promoted extra data, user attachments are not truncated by this library — keep attachment sizes within Sentry's limits.
 
