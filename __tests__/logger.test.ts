@@ -503,4 +503,41 @@ describe("Logger adapter message sanitization", () => {
 
     expect(mockAdapter.error).toHaveBeenCalledWith("Failed to process file", options)
   })
+
+  it("should forward logger masking config to adapters", () => {
+    const logger = new Logger({ masking: { add: ["ssn"] } })
+    const mockAdapter: any = {
+      error: jest.fn(),
+      name: "mock",
+      minimumLogLevel: Severity.Trace,
+    }
+
+    logger.addLogger(mockAdapter)
+    logger.error("Payment failed", { extraData: { userId: "u1" } })
+
+    expect(mockAdapter.error).toHaveBeenCalledWith("Payment failed", {
+      extraData: { userId: "u1" },
+      masking: { add: ["ssn"] },
+    })
+  })
+
+  it("should merge per-call masking with logger masking config", () => {
+    const logger = new Logger({ masking: { add: ["ssn"], exclude: ["session"] } })
+    const mockAdapter: any = {
+      error: jest.fn(),
+      name: "mock",
+      minimumLogLevel: Severity.Trace,
+    }
+
+    logger.addLogger(mockAdapter)
+    logger.error("Payment failed", {
+      extraData: { userId: "u1" },
+      masking: { keys: ["token"], exclude: ["authorization"] },
+    })
+
+    expect(mockAdapter.error).toHaveBeenCalledWith("Payment failed", {
+      extraData: { userId: "u1" },
+      masking: { keys: ["token"], add: ["ssn"], exclude: ["session", "authorization"] },
+    })
+  })
 })

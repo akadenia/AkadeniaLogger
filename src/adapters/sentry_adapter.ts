@@ -1,11 +1,13 @@
 import { Severity, ILogger, Options, ApiResponse, Attachment } from "../logger"
+import { maskSensitiveData, SensitiveKeyMasking } from "../serialization"
 import { Client, Scope, SeverityLevel } from "@sentry/types"
 
 const EXTRA_ATTACHMENT_THRESHOLD_BYTES = 16 * 1024
 const AUTO_ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024
+const SMALL_SCALAR_MAX_CHARS = 200
 const EXTRA_DATA_ATTACHMENT_FILENAME = "extra-data.json"
 const EXTRA_DATA_ATTACHMENT_NOTICE = "EXTRA DATA INCLUDED AS FILE ATTACHMENT, CHECK ATTACHMENTS SECTION"
-const ATTACHMENT_TRUNCATED_SUFFIX = "... [ATTACHMENT TRUNCATED]"
+const INLINE_TRUNCATED_SUFFIX = "... [TRUNCATED]"
 
 export enum SentrySeverity {
   Debug = "debug",
@@ -17,6 +19,12 @@ export enum SentrySeverity {
 
 interface SentryClient extends Client {
   withScope(callback: (scope: Scope) => void): void
+}
+
+type NormalizedAttachment = {
+  filename: string
+  data: string | Uint8Array
+  contentType?: string
 }
 
 export class SentryAdapter implements ILogger {
@@ -44,14 +52,14 @@ export class SentryAdapter implements ILogger {
     return trimmedResponse
   }
 
-  private processData(extraData: any, response?: ApiResponse): any {
-    const processedData: any = { ...(extraData || {}) }
+  private processData(extraData: any, response?: ApiResponse, masking?: SensitiveKeyMasking): any {
+    const processedData: any = maskSensitiveData({ ...(extraData || {}) }, masking)
 
     // Add trimmed response if provided
     if (response && typeof response === "object") {
       const trimmedResponse = this.trimResponse(response)
       if (Object.keys(trimmedResponse).length > 0) {
-        processedData.response = trimmedResponse
+        processedData.response = maskSensitiveData(trimmedResponse, masking)
       }
     }
 
@@ -108,7 +116,73 @@ export class SentryAdapter implements ILogger {
     return str.substring(0, bestFit)
   }
 
-  private prepareExtraData(processedData: any): { extraString: string; autoAttachment?: Attachment } {
+  private isSmallScalar(value: unknown): boolean {
+    if (value === null) return true
+    switch (typeof value) {
+      case "number":
+      case "boolean":
+        return true
+      case "string":
+        return value.length <= SMALL_SCALAR_MAX_CHARS
+      default:
+        return false
+    }
+  }
+
+  private buildSearchableExtraSummary(processedData: any): string {
+    const summary: Record<string, unknown> = { notice: EXTRA_DATA_ATTACHMENT_NOTICE }
+
+    if (processedData && typeof processedData === "object") {
+      for (const [key, value] of Object.entries(processedData)) {
+        if (key === "response" && value && typeof value === "object") {
+          const response = value as Record<string, unknown>
+          const slim: Record<string, unknown> = {}
+          if (response.status !== undefined) slim.status = response.status
+          if (response.statusText !== undefined) slim.statusText = response.statusText
+          if (Object.keys(slim).length > 0) summary.response = slim
+          continue
+        }
+
+        if (this.isSmallScalar(value)) summary[key] = value
+      }
+    }
+
+    return this.safeStringify(summary, 4)
+  }
+
+  private buildTruncatedJsonEnvelope(dataString: string): string {
+    const encoder = new TextEncoder()
+    let left = 0
+    let right = dataString.length
+    let best = this.safeStringify({ truncated: true, data: "" })
+
+    while (left <= right) {
+      const mid = Math.floor((left + right) / 2)
+      const candidate = this.safeStringify({ truncated: true, data: dataString.substring(0, mid) })
+      if (encoder.encode(candidate).length <= AUTO_ATTACHMENT_MAX_BYTES) {
+        best = candidate
+        left = mid + 1
+      } else {
+        right = mid - 1
+      }
+    }
+
+    return best
+  }
+
+  private truncateDataIfNeeded(processedData: any): string {
+    const encoder = new TextEncoder()
+    const dataString = this.safeStringify(processedData, 4)
+
+    if (encoder.encode(dataString).length <= EXTRA_ATTACHMENT_THRESHOLD_BYTES) {
+      return dataString
+    }
+
+    const reservedBytes = encoder.encode(INLINE_TRUNCATED_SUFFIX).length
+    return `${this.truncateToByteSize(dataString, EXTRA_ATTACHMENT_THRESHOLD_BYTES - reservedBytes)}${INLINE_TRUNCATED_SUFFIX}`
+  }
+
+  private prepareExtraData(processedData: any): { extraString: string; autoAttachment?: NormalizedAttachment } {
     const encoder = new TextEncoder()
     const dataString = this.safeStringify(processedData, 4)
     const dataSize = encoder.encode(dataString).length
@@ -117,16 +191,10 @@ export class SentryAdapter implements ILogger {
       return { extraString: dataString }
     }
 
-    const attachmentTruncated = dataSize > AUTO_ATTACHMENT_MAX_BYTES
-    let attachmentData = dataString
-
-    if (attachmentTruncated) {
-      const reservedBytes = encoder.encode(ATTACHMENT_TRUNCATED_SUFFIX).length
-      attachmentData = `${this.truncateToByteSize(dataString, AUTO_ATTACHMENT_MAX_BYTES - reservedBytes)}${ATTACHMENT_TRUNCATED_SUFFIX}`
-    }
+    const attachmentData = dataSize > AUTO_ATTACHMENT_MAX_BYTES ? this.buildTruncatedJsonEnvelope(dataString) : dataString
 
     return {
-      extraString: EXTRA_DATA_ATTACHMENT_NOTICE,
+      extraString: this.buildSearchableExtraSummary(processedData),
       autoAttachment: {
         filename: EXTRA_DATA_ATTACHMENT_FILENAME,
         data: attachmentData,
@@ -137,13 +205,20 @@ export class SentryAdapter implements ILogger {
 
   private normalizeAttachmentData(data: unknown): string | Uint8Array | null {
     if (typeof data === "string") return data
-    if (data instanceof Uint8Array) return data
-    if (typeof Buffer !== "undefined" && Buffer.isBuffer(data)) return new Uint8Array(data)
+    if (data instanceof ArrayBuffer) return new Uint8Array(data.slice(0))
+    if (data instanceof Uint8Array) return new Uint8Array(data)
     return null
   }
 
-  private processAttachments(attachments: Attachment[]): Attachment[] {
-    const processed: Attachment[] = []
+  private tryAddAttachment(scope: Scope, attachment: NormalizedAttachment): boolean {
+    const addAttachment = (scope as Scope & { addAttachment?: unknown }).addAttachment
+    if (typeof addAttachment !== "function") return false
+    addAttachment.call(scope, attachment)
+    return true
+  }
+
+  private processAttachments(attachments: Attachment[]): NormalizedAttachment[] {
+    const processed: NormalizedAttachment[] = []
 
     for (const attachment of attachments) {
       if (!attachment?.filename || typeof attachment.filename !== "string" || !attachment.filename.trim()) {
@@ -166,30 +241,35 @@ export class SentryAdapter implements ILogger {
   private captureMessage(message: string, severity: SeverityLevel, options?: Options) {
     this.Sentry.withScope((scope: Scope) => {
       if (options?.extraData || options?.response) {
-        const processedData = this.processData(options.extraData, options.response)
+        const processedData = this.processData(options.extraData, options.response, options.masking)
         const { extraString, autoAttachment } = this.prepareExtraData(processedData)
-        scope.setExtra("extra-data", extraString)
         if (autoAttachment) {
-          scope.addAttachment(autoAttachment)
+          if (this.tryAddAttachment(scope, autoAttachment)) {
+            scope.setExtra("extra-data", extraString)
+          } else {
+            scope.setExtra("extra-data", this.truncateDataIfNeeded(processedData))
+          }
+        } else {
+          scope.setExtra("extra-data", extraString)
         }
       }
 
       if (options?.attachments?.length) {
         for (const attachment of this.processAttachments(options.attachments)) {
-          scope.addAttachment(attachment)
+          this.tryAddAttachment(scope, attachment)
         }
       }
 
       if (severity === SentrySeverity.Fatal && options?.exception) {
         scope.setExtra("message", message)
+        const exception = options.exception instanceof Error ? options.exception : new Error(message)
         if (!(options.exception instanceof Error)) {
-          options.exception = new Error(message)
-          scope.setExtra("options", options)
-
+          const { attachments: _attachments, exception: _exception, ...optionsForExtra } = options
+          scope.setExtra("options", optionsForExtra)
           this.Sentry.captureMessage("Sentry.captureException was called with a non Error instance", SentrySeverity.Error)
         }
 
-        this.Sentry.captureException(options.exception, undefined, scope)
+        this.Sentry.captureException(exception, undefined, scope)
       } else {
         this.Sentry.captureMessage(message, severity)
       }

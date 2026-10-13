@@ -1,10 +1,68 @@
 // Enhanced object serialization for better logging visibility
 // Provides detailed object inspection while maintaining security
 
-const SENSITIVE_KEY_PATTERNS = /^(header|auth|token|password|secret|key|credential|session|cookie|sig|csrf)/i
+export const DEFAULT_SENSITIVE_KEY_PREFIXES = [
+  "header",
+  "auth",
+  "token",
+  "password",
+  "secret",
+  "credential",
+  "session",
+  "cookie",
+  "sig",
+  "csrf",
+] as const
+
+export type SensitiveKeyMasking = {
+  /** Replace the default prefix list. Omit to keep the defaults. */
+  keys?: string[]
+  /** Extra prefixes to mask, on top of the default list or `keys`. */
+  add?: string[]
+  /**
+   * Do not mask these names (case-insensitive).
+   * A value that matches a resolved prefix drops that prefix (`session` unmasks `sessionId`).
+   * A value that is only an exact key unmasks that key (`sessionId` leaves `session` masked).
+   */
+  exclude?: string[]
+}
+
 const MAX_DEPTH = 3
 const MAX_STRING_LENGTH = 200
 const MAX_ARRAY_ITEMS = 5
+
+export const mergeSensitiveKeyMasking = (
+  base?: SensitiveKeyMasking,
+  override?: SensitiveKeyMasking,
+): SensitiveKeyMasking | undefined => {
+  if (!base && !override) return undefined
+
+  const keys = override?.keys ?? base?.keys
+  const add = [...(base?.add ?? []), ...(override?.add ?? [])]
+  const exclude = [...(base?.exclude ?? []), ...(override?.exclude ?? [])]
+  const merged: SensitiveKeyMasking = {}
+
+  if (keys) merged.keys = keys
+  if (add.length > 0) merged.add = add
+  if (exclude.length > 0) merged.exclude = exclude
+
+  return Object.keys(merged).length > 0 ? merged : undefined
+}
+
+export const isSensitiveKey = (key: string, masking?: SensitiveKeyMasking): boolean => {
+  const exclude = (masking?.exclude ?? []).map((item) => item.toLowerCase())
+  const keyLower = key.toLowerCase()
+
+  if (exclude.includes(keyLower)) return false
+
+  const prefixes = [...(masking?.keys ?? DEFAULT_SENSITIVE_KEY_PREFIXES), ...(masking?.add ?? [])].filter(
+    (prefix) => !exclude.includes(prefix.toLowerCase()),
+  )
+
+  if (prefixes.length === 0) return false
+
+  return prefixes.some((prefix) => keyLower.startsWith(prefix.toLowerCase()))
+}
 
 /**
  * Enhanced object serialization that shows more details than the basic "[object with X keys]"
@@ -13,7 +71,12 @@ const MAX_ARRAY_ITEMS = 5
  * @param visited - Set of visited objects to prevent circular references
  * @returns Detailed string representation of the object
  */
-export const serializeObjectDetailed = (obj: any, depth: number = 0, visited: WeakSet<object> = new WeakSet()): string => {
+export const serializeObjectDetailed = (
+  obj: any,
+  depth: number = 0,
+  visited: WeakSet<object> = new WeakSet(),
+  masking?: SensitiveKeyMasking,
+): string => {
   // Handle null/undefined
   if (obj === null) return "null"
   if (obj === undefined) return "undefined"
@@ -38,7 +101,7 @@ export const serializeObjectDetailed = (obj: any, depth: number = 0, visited: We
 
     const items = obj
       .slice(0, MAX_ARRAY_ITEMS)
-      .map((item) => (depth < MAX_DEPTH ? serializeObjectDetailed(item, depth + 1, visited) : "[...]"))
+      .map((item) => (depth < MAX_DEPTH ? serializeObjectDetailed(item, depth + 1, visited, masking) : "[...]"))
 
     const suffix = obj.length > MAX_ARRAY_ITEMS ? `, ... ${obj.length - MAX_ARRAY_ITEMS} more` : ""
     return `[${items.join(", ")}${suffix}]`
@@ -69,13 +132,13 @@ export const serializeObjectDetailed = (obj: any, depth: number = 0, visited: We
       const value = obj[key]
 
       // Check if key is sensitive
-      if (SENSITIVE_KEY_PATTERNS.test(key)) {
+      if (isSensitiveKey(key, masking)) {
         entries.push(`${key}: [MASKED]`)
         continue
       }
 
       // Serialize the value
-      const serializedValue = serializeObjectDetailed(value, depth + 1, visited)
+      const serializedValue = serializeObjectDetailed(value, depth + 1, visited, masking)
       entries.push(`${key}: ${serializedValue}`)
 
       // Limit number of properties shown at each level
@@ -95,16 +158,36 @@ export const serializeObjectDetailed = (obj: any, depth: number = 0, visited: We
 }
 
 /**
+ * Deep-copy a value, replacing sensitive keys with `[MASKED]`.
+ * Used before sending extraData to remote adapters.
+ */
+export const maskSensitiveData = (value: any, masking?: SensitiveKeyMasking, seen: WeakSet<object> = new WeakSet()): any => {
+  if (value === null || typeof value !== "object") return value
+  if (seen.has(value)) return "[Circular]"
+  seen.add(value)
+
+  if (Array.isArray(value)) {
+    return value.map((item) => maskSensitiveData(item, masking, seen))
+  }
+
+  const masked: Record<string, any> = {}
+  for (const key of Object.keys(value)) {
+    masked[key] = isSensitiveKey(key, masking) ? "[MASKED]" : maskSensitiveData(value[key], masking, seen)
+  }
+  return masked
+}
+
+/**
  * Create a safe but detailed summary of an object for logging
  * @param obj - Object to summarize
  * @param label - Optional label for the object
  * @returns Detailed string representation
  */
-export const createDetailedObjectSummary = (obj: any, label?: string): string => {
+export const createDetailedObjectSummary = (obj: any, label?: string, masking?: SensitiveKeyMasking): string => {
   const prefix = label ? `${label}: ` : ""
 
   try {
-    return `${prefix}${serializeObjectDetailed(obj)}`
+    return `${prefix}${serializeObjectDetailed(obj, 0, new WeakSet(), masking)}`
   } catch (error) {
     return `${prefix}[Error serializing object: ${error}]`
   }
@@ -134,7 +217,7 @@ export const createEnhancedResponseSummary = (response: any): string => {
     if (typeof response.headers === "object") {
       const headerKeys = Object.keys(response.headers)
       const safeHeaders = headerKeys
-        .filter((key) => !SENSITIVE_KEY_PATTERNS.test(key) && !key.toLowerCase().includes("authorization"))
+        .filter((key) => !isSensitiveKey(key) && !key.toLowerCase().includes("authorization"))
         .slice(0, 3)
 
       if (safeHeaders.length > 0) {
@@ -153,8 +236,7 @@ export const createEnhancedResponseSummary = (response: any): string => {
 
   // Other safe properties
   const otherKeys = Object.keys(response).filter(
-    (key) =>
-      !["status", "statusText", "ok", "url", "type", "headers", "bodyUsed"].includes(key) && !SENSITIVE_KEY_PATTERNS.test(key),
+    (key) => !["status", "statusText", "ok", "url", "type", "headers", "bodyUsed"].includes(key) && !isSensitiveKey(key),
   )
 
   for (const key of otherKeys.slice(0, 5)) {

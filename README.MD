@@ -86,9 +86,16 @@ try {
 ## Configuration
 
 ```typescript
+type SensitiveKeyMasking = {
+  keys?: string[]     // Replace the default prefix list
+  add?: string[]      // Extra prefixes to mask
+  exclude?: string[]  // Drop a default prefix, or a specific key
+}
+
 type Config = {
   consoleEnabled?: boolean           // Enable/disable console logging
   consoleMinimumLogLevel?: Severity  // Minimum level for console output
+  masking?: SensitiveKeyMasking      // Default extraData key masking for Sentry extra / extra-data.json
 }
 ```
 
@@ -117,7 +124,7 @@ All log methods accept an optional `Options` object:
 ```typescript
 type Attachment = {
   filename: string
-  data: string | Uint8Array
+  data: string | Uint8Array | ArrayBuffer
   contentType?: string                // Optional MIME type (e.g. text/plain, image/png)
 }
 
@@ -128,6 +135,7 @@ type Options = {
   forceConsole?: boolean              // Override consoleEnabled for this call
   signozPayload?: any                 // SignOz-specific OTLP fields (trace_id, span_id, resources, attributes, etc.)
   attachments?: Attachment[]          // Files attached to this log (filename, data, optional contentType)
+  masking?: SensitiveKeyMasking       // Per-call masking; merged with Logger config
 }
 ```
 
@@ -199,7 +207,7 @@ logger.exception("PDF export failed", error as Error, {
     },
     {
       filename: "screenshot.png",
-      data: pngBytes, // Uint8Array
+      data: pngBytes, // Uint8Array or ArrayBuffer
       contentType: "image/png",
     },
   ],
@@ -210,7 +218,30 @@ logger.error("Failed to process file", {
 })
 ```
 
-> If combined `extraData` + `response` JSON is over 16KB (Sentry's extra-item limit), Sentry extra is replaced with `EXTRA DATA INCLUDED AS FILE ATTACHMENT, CHECK ATTACHMENTS SECTION` and the full payload is attached as `extra-data.json`. Auto-attachments are capped at 5MB so a huge dump cannot reject the event. Sensitive keys (`auth`, `token`, `password`, `secret`, etc.) are masked before sending.
+> If combined `extraData` + `response` JSON is over 16KB (Sentry's extra-item limit), the full payload is attached as `extra-data.json`. Sentry extra keeps a searchable summary: a notice plus small top-level scalar fields and `response.status` / `statusText`. Auto-attachments over 5MB are stored as a valid JSON envelope (`{ "truncated": true, "data": "..." }`) so a huge dump cannot reject the event.
+
+Sensitive keys are masked in Sentry extra and `extra-data.json`. The default prefixes are `header`, `auth`, `token`, `password`, `secret`, `credential`, `session`, `cookie`, `sig`, and `csrf` (case-insensitive prefix match). Configure on the logger or per call:
+
+```typescript
+const logger = new Logger({
+  masking: {
+    add: ["ssn"],              // also mask ssn, ssnNumber, ...
+    exclude: ["sessionId"],    // leave this exact key visible
+  },
+})
+
+// Replace the default list for one call
+logger.error("Login failed", {
+  extraData: { token: "abc", password: "p" },
+  masking: { keys: ["token"] },
+})
+
+// Drop a default prefix (session, sessionId, ...)
+logger.error("Session expired", {
+  extraData: { sessionId: "s-1" },
+  masking: { exclude: ["session"] },
+})
+```
 
 > Consumer `attachments` are sent as-is. Sentry enforces roughly 40MB compressed / 200MB uncompressed per event; oversized uploads are rejected with HTTP 413. Unlike auto-promoted extra data, user attachments are not truncated by this library — keep attachment sizes within Sentry's limits.
 

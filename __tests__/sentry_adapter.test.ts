@@ -124,6 +124,39 @@ describe("SentryAdapter Tests", () => {
         },
       })
     })
+
+    it("should mask sensitive keys in extraData", () => {
+      const processedData = (sentryAdapter as any).processData({
+        userId: "12345",
+        token: "super-secret",
+        key: "order-42",
+        keyName: "checkout",
+        nested: { password: "hunter2", ok: true },
+      })
+
+      expect(processedData).toEqual({
+        userId: "12345",
+        token: "[MASKED]",
+        key: "order-42",
+        keyName: "checkout",
+        nested: { password: "[MASKED]", ok: true },
+      })
+    })
+
+    it("should apply add, keys override, and exclude from masking options", () => {
+      const added = (sentryAdapter as any).processData({ ssn: "111", token: "abc" }, undefined, { add: ["ssn"] })
+      expect(added).toEqual({ ssn: "[MASKED]", token: "[MASKED]" })
+
+      const overridden = (sentryAdapter as any).processData({ ssn: "111", token: "abc", password: "p" }, undefined, {
+        keys: ["token"],
+      })
+      expect(overridden).toEqual({ ssn: "111", token: "[MASKED]", password: "p" })
+
+      const excluded = (sentryAdapter as any).processData({ token: "abc", sessionId: "keep" }, undefined, {
+        exclude: ["sessionId"],
+      })
+      expect(excluded).toEqual({ token: "[MASKED]", sessionId: "keep" })
+    })
   })
 
   describe("prepareExtraData", () => {
@@ -137,7 +170,10 @@ describe("SentryAdapter Tests", () => {
 
       const result = (sentryAdapter as any).prepareExtraData(processedData)
 
-      expect(result.extraString).toBe("EXTRA DATA INCLUDED AS FILE ATTACHMENT, CHECK ATTACHMENTS SECTION")
+      expect(result.extraString).toContain("EXTRA DATA INCLUDED AS FILE ATTACHMENT, CHECK ATTACHMENTS SECTION")
+      expect(result.extraString).toContain('"userId": "12345"')
+      expect(result.extraString).toContain('"regularField": "normal text"')
+      expect(result.extraString).not.toContain(emojiData)
       expect(result.autoAttachment.filename).toBe("extra-data.json")
       expect(result.autoAttachment.data).toContain(emojiData)
     })
@@ -210,7 +246,7 @@ describe("SentryAdapter Tests", () => {
       expect(mockScope.addAttachment).toHaveBeenNthCalledWith(2, { filename: "b.txt", data: "second" })
     })
 
-    it("should normalize Buffer input to Uint8Array", () => {
+    it("should copy Buffer input so later mutation does not change the attachment", () => {
       const buffer = Buffer.from("binary content")
 
       sentryAdapter.error("Test error", {
@@ -221,7 +257,56 @@ describe("SentryAdapter Tests", () => {
       const attachment = mockScope.addAttachment.mock.calls[0][0]
       expect(attachment.filename).toBe("data.bin")
       expect(attachment.data).toBeInstanceOf(Uint8Array)
+      expect(attachment.data).not.toBe(buffer)
+      buffer[0] = 0
       expect(Buffer.from(attachment.data).toString()).toBe("binary content")
+    })
+
+    it("should copy ArrayBuffer input into an independent Uint8Array", () => {
+      const bytes = new Uint8Array([1, 2, 3, 4])
+      const arrayBuffer = bytes.buffer
+
+      sentryAdapter.error("Test error", {
+        attachments: [{ filename: "chunk.bin", data: arrayBuffer }],
+      })
+
+      expect(mockScope.addAttachment).toHaveBeenCalledTimes(1)
+      const attachment = mockScope.addAttachment.mock.calls[0][0]
+      expect(attachment.data).toBeInstanceOf(Uint8Array)
+      expect(Array.from(attachment.data)).toEqual([1, 2, 3, 4])
+      expect(attachment.data.buffer).not.toBe(arrayBuffer)
+      bytes[0] = 9
+      expect(Array.from(attachment.data)).toEqual([1, 2, 3, 4])
+    })
+
+    it("should still capture when addAttachment is missing", () => {
+      delete mockScope.addAttachment
+
+      expect(() =>
+        sentryAdapter.error("Test error", {
+          extraData: { userId: "123" },
+          attachments: [{ filename: "a.txt", data: "hello" }],
+        }),
+      ).not.toThrow()
+
+      expect(mockSentry.captureMessage).toHaveBeenCalledWith("Test error", SentrySeverity.Error)
+      expect(mockScope.setExtra).toHaveBeenCalledWith("extra-data", expect.stringContaining('"userId": "123"'))
+    })
+
+    it("should not serialize attachment bytes into the options extra on a non-Error exception", () => {
+      const data = new Uint8Array(256).fill(120)
+
+      sentryAdapter.exception("boom", "not-an-error" as any, {
+        extraData: { userId: "u1" },
+        attachments: [{ filename: "dump.bin", data }],
+      })
+
+      const optionsExtra = mockScope.setExtra.mock.calls.find((call: any[]) => call[0] === "options")?.[1]
+      expect(optionsExtra).toBeDefined()
+      expect(optionsExtra.attachments).toBeUndefined()
+      expect(optionsExtra.exception).toBeUndefined()
+      expect(JSON.stringify(optionsExtra)).not.toContain('"0":')
+      expect(mockSentry.captureException).toHaveBeenCalled()
     })
 
     it("should skip invalid attachments and still add valid ones", () => {
@@ -260,14 +345,21 @@ describe("SentryAdapter Tests", () => {
       expect(extraDataAttachment()).toBeUndefined()
     })
 
-    it("should attach extra-data.json and replace extra with a pointer when extraData is over 16KB", () => {
+    it("should attach extra-data.json and keep a searchable extra summary when extraData is over 16KB", () => {
       const payload = "x".repeat(20 * 1024)
-      sentryAdapter.error("Test error", { extraData: { payload } })
+      sentryAdapter.error("Test error", {
+        extraData: { userId: "12345", payload },
+        response: { status: 404, statusText: "Not Found", data: { body: payload } },
+      })
 
       const extra = mockScope.setExtra.mock.calls.find((call: any[]) => call[0] === "extra-data")?.[1] as string
       const attachment = extraDataAttachment()
 
-      expect(extra).toBe("EXTRA DATA INCLUDED AS FILE ATTACHMENT, CHECK ATTACHMENTS SECTION")
+      expect(extra).toContain("EXTRA DATA INCLUDED AS FILE ATTACHMENT, CHECK ATTACHMENTS SECTION")
+      expect(extra).toContain('"userId": "12345"')
+      expect(extra).toContain('"status": 404')
+      expect(extra).toContain('"statusText": "Not Found"')
+      expect(extra).not.toContain(payload)
       expect(attachment).toEqual({
         filename: "extra-data.json",
         data: expect.stringContaining(payload),
@@ -276,17 +368,52 @@ describe("SentryAdapter Tests", () => {
       expect(attachment.data).not.toContain("[TRUNCATED - extraData]")
     })
 
-    it("should cap auto-attachments over 5MB", () => {
+    it("should cap auto-attachments over 5MB as valid JSON", () => {
       const payload = "x".repeat(5 * 1024 * 1024)
       sentryAdapter.error("Test error", { extraData: { payload } })
 
       const extra = mockScope.setExtra.mock.calls.find((call: any[]) => call[0] === "extra-data")?.[1] as string
       const attachment = extraDataAttachment()
       const attachmentBytes = new TextEncoder().encode(attachment.data).length
+      const parsed = JSON.parse(attachment.data)
 
-      expect(attachment.data.endsWith("[ATTACHMENT TRUNCATED]")).toBe(true)
+      expect(parsed.truncated).toBe(true)
+      expect(typeof parsed.data).toBe("string")
+      expect(parsed.data).toContain("x".repeat(100))
       expect(attachmentBytes).toBeLessThanOrEqual(5 * 1024 * 1024)
-      expect(extra).toBe("EXTRA DATA INCLUDED AS FILE ATTACHMENT, CHECK ATTACHMENTS SECTION")
+      expect(extra).toContain("EXTRA DATA INCLUDED AS FILE ATTACHMENT, CHECK ATTACHMENTS SECTION")
+    })
+
+    it("should truncate extra inline when addAttachment is missing and extraData is oversized", () => {
+      delete mockScope.addAttachment
+      const payload = "x".repeat(20 * 1024)
+
+      expect(() => sentryAdapter.error("Test error", { extraData: { payload } })).not.toThrow()
+
+      expect(mockSentry.captureMessage).toHaveBeenCalledWith("Test error", SentrySeverity.Error)
+      const extra = mockScope.setExtra.mock.calls.find((call: any[]) => call[0] === "extra-data")?.[1] as string
+      expect(extra).toContain("[TRUNCATED]")
+      expect(extra).toContain("xxx")
+      expect(new TextEncoder().encode(extra).length).toBeLessThanOrEqual(16 * 1024)
+    })
+
+    it("should mask sensitive keys in extra and extra-data.json", () => {
+      const payload = "x".repeat(20 * 1024)
+      sentryAdapter.error("Test error", {
+        extraData: { userId: "12345", token: "super-secret", password: "hunter2", payload },
+      })
+
+      const extra = mockScope.setExtra.mock.calls.find((call: any[]) => call[0] === "extra-data")?.[1] as string
+      const attachment = extraDataAttachment()
+
+      expect(extra).toContain('"userId": "12345"')
+      expect(extra).toContain("[MASKED]")
+      expect(extra).not.toContain("super-secret")
+      expect(extra).not.toContain("hunter2")
+      expect(attachment.data).toContain("[MASKED]")
+      expect(attachment.data).not.toContain("super-secret")
+      expect(attachment.data).not.toContain("hunter2")
+      expect(attachment.data).toContain(payload)
     })
 
     it("should add both user attachments and extra-data.json for oversized extraData", () => {
