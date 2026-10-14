@@ -1,4 +1,5 @@
 import { ILogger, Options, PredefinedLogEvents, PredefinedLogOptions, Severity } from "../logger"
+import { safeStringify } from "../serialization"
 
 export enum LogSeverity {
   Warning = "WARNING",
@@ -19,19 +20,8 @@ const toFirebaseName = (s?: string): string => {
   return (/^[A-Za-z]/.test(name) ? name : `e_${name}`).substring(0, MAX_NAME_LENGTH)
 }
 
-const stringifyValue = (value: unknown, maxLength: number): string => {
-  let str: string
-  if (typeof value === "string") {
-    str = value
-  } else {
-    try {
-      str = JSON.stringify(value, (_key, val) => (typeof val === "bigint" ? val.toString() : val)) ?? String(value)
-    } catch {
-      str = "[Unserializable value]"
-    }
-  }
-  return str.length > maxLength ? str.substring(0, maxLength) : str
-}
+const stringifyValue = (value: unknown, maxLength: number): string =>
+  (typeof value === "object" ? safeStringify(value) : String(value)).substring(0, maxLength)
 
 const collectFields = (options?: Options): Record<string, unknown> => {
   const fields: Record<string, unknown> = {}

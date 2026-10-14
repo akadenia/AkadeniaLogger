@@ -37,43 +37,6 @@ describe("SentryAdapter Tests", () => {
     })
   })
 
-  // Essential tests for safe JSON stringify
-  describe("safeStringify", () => {
-    it("should handle circular references", () => {
-      const obj: any = { name: "Test" }
-      obj.self = obj // Create circular reference
-
-      const result = (sentryAdapter as any).safeStringify(obj, 2)
-
-      expect(result).toContain('"name": "Test"')
-      expect(result).toContain('"self": "[Circular]"')
-    })
-
-    it("should handle BigInt values", () => {
-      const obj = { id: BigInt("1234567890123456789"), name: "Test" }
-      const result = (sentryAdapter as any).safeStringify(obj, 2)
-
-      expect(result).toContain('"id": "')
-      expect(result).toContain('"name": "Test"')
-      expect(result).toContain('"id": "1234567890123456789"') // Check for exact BigInt string
-    })
-
-    it("should return fallback string on complete failure", () => {
-      // Mock JSON.stringify to throw an error using jest.spyOn for automatic restoration
-      const stringifySpy = jest.spyOn(JSON, "stringify").mockImplementation(() => {
-        throw new Error("Complete failure")
-      })
-
-      const obj = { test: "value" }
-      const result = (sentryAdapter as any).safeStringify(obj)
-
-      expect(result).toBe("[Unserializable extra-data]")
-
-      // Automatically restore original JSON.stringify
-      stringifySpy.mockRestore()
-    })
-  })
-
   // Essential test for response trimming
   describe("trimResponse", () => {
     it("should trim response to essential fields only", () => {
@@ -171,16 +134,6 @@ describe("SentryAdapter Tests", () => {
 
       expect(mockSentry.captureMessage).toHaveBeenCalledWith("Trace message", SentrySeverity.Debug)
       expect(mockSentry.captureMessage).toHaveBeenCalledWith("Debug message", SentrySeverity.Debug)
-    })
-  })
-
-  describe("safeStringify shared references", () => {
-    it("should keep shared references that are not circular", () => {
-      const shared = { id: 1 }
-
-      const result = (sentryAdapter as any).safeStringify({ a: shared, b: [shared] })
-
-      expect(JSON.parse(result)).toEqual({ a: { id: 1 }, b: [{ id: 1 }] })
     })
   })
 

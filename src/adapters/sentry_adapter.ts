@@ -1,4 +1,5 @@
 import { Severity, ILogger, Options, ApiResponse } from "../logger"
+import { safeStringify } from "../serialization"
 
 export enum SentrySeverity {
   Debug = "debug",
@@ -62,28 +63,6 @@ export class SentryAdapter implements ILogger {
     return processedData
   }
 
-  private safeStringify(value: any, space?: number): string {
-    const ancestors: object[] = []
-    try {
-      return JSON.stringify(
-        value,
-        function (this: any, _key, val) {
-          if (typeof val === "bigint") return val.toString()
-          if (typeof val === "object" && val !== null) {
-            // Track the current path only, so shared (non-circular) references are kept
-            while (ancestors.length > 0 && ancestors[ancestors.length - 1] !== this) ancestors.pop()
-            if (ancestors.includes(val)) return "[Circular]"
-            ancestors.push(val)
-          }
-          return val
-        },
-        space,
-      )!
-    } catch {
-      return "[Unserializable extra-data]"
-    }
-  }
-
   private truncateToByteSize(str: string, maxBytes: number): string {
     const encoder = new TextEncoder()
     let truncated = str
@@ -117,22 +96,22 @@ export class SentryAdapter implements ILogger {
   private truncateDataIfNeeded(processedData: any): string {
     const SENTRY_MAX_SIZE = 16 * 1024 // 16kb in bytes
     const encoder = new TextEncoder()
-    let dataString = this.safeStringify(processedData, 4)
+    let dataString = safeStringify(processedData, 4)
     let dataSize = encoder.encode(dataString).length
 
     if (dataSize > SENTRY_MAX_SIZE) {
       // Create a deep copy to avoid mutating the original object
-      const dataCopy = JSON.parse(this.safeStringify(processedData))
+      const dataCopy = JSON.parse(safeStringify(processedData))
 
       // If there's a response with data, try to truncate just the response.data first
       if (processedData.response?.data) {
-        const tempData = JSON.parse(this.safeStringify(dataCopy))
+        const tempData = JSON.parse(safeStringify(dataCopy))
         delete tempData.response.data
-        const baseSize = encoder.encode(this.safeStringify(tempData, 4)).length
+        const baseSize = encoder.encode(safeStringify(tempData, 4)).length
         const availableSpace = SENTRY_MAX_SIZE - baseSize - 100 // Reserve 100 bytes for truncation indicator
 
         if (availableSpace > 0) {
-          const dataStr = this.safeStringify(dataCopy.response.data)
+          const dataStr = safeStringify(dataCopy.response.data)
           const dataBytes = encoder.encode(dataStr)
 
           if (dataBytes.length > availableSpace) {
@@ -140,13 +119,13 @@ export class SentryAdapter implements ILogger {
             const truncated = this.truncateToByteSize(dataStr, availableSpace - 20) // Reserve space for truncation indicator
             dataCopy.response.data = `${truncated}... [TRUNCATED]`
             dataCopy.response._dataTruncated = true
-            dataString = this.safeStringify(dataCopy, 4)
+            dataString = safeStringify(dataCopy, 4)
             dataSize = encoder.encode(dataString).length
           }
         } else {
           dataCopy.response.data = "[Removed - Exceeds size limit]"
           dataCopy.response._dataTruncated = true
-          dataString = this.safeStringify(dataCopy, 4)
+          dataString = safeStringify(dataCopy, 4)
           dataSize = encoder.encode(dataString).length
         }
       } else {

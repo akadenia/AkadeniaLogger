@@ -1,4 +1,5 @@
 import { Severity, ILogger, Options } from "../logger"
+import { safeStringify } from "../serialization"
 
 export enum SignozSeverity {
   Warn = "warn",
@@ -27,22 +28,9 @@ export type SignozAdapterConfig = {
   timeoutMs?: number
 }
 
-const safeStringify = (value: any): string => {
-  const ancestors: object[] = []
-  try {
-    return JSON.stringify(value, function (this: any, _key, val) {
-      if (typeof val === "bigint") return val.toString()
-      if (typeof val === "object" && val !== null) {
-        // Track the current path only, so shared (non-circular) references are kept
-        while (ancestors.length > 0 && ancestors[ancestors.length - 1] !== this) ancestors.pop()
-        if (ancestors.includes(val)) return "[Circular]"
-        ancestors.push(val)
-      }
-      return val
-    })
-  } catch {
-    return "[Unserializable value]"
-  }
+export interface SignozAttribute {
+  key: string
+  value: { stringValue?: string; intValue?: string; doubleValue?: string; boolValue?: boolean }
 }
 
 export interface SignozLogBody {
@@ -57,18 +45,12 @@ export interface SignozLogRecord {
   severityText: string
   severityNumber?: number
   body: SignozLogBody
-  attributes?: Array<{
-    key: string
-    value: { stringValue?: string; intValue?: string; doubleValue?: string; boolValue?: boolean }
-  }>
+  attributes?: SignozAttribute[]
 }
 
 export interface SignozResourceLog {
   resource?: {
-    attributes?: Array<{
-      key: string
-      value: { stringValue?: string; intValue?: string; doubleValue?: string; boolValue?: boolean }
-    }>
+    attributes?: SignozAttribute[]
   }
   scopeLogs: Array<{
     logRecords: SignozLogRecord[]
@@ -99,9 +81,7 @@ export class SignozAdapter implements ILogger {
     this.timeoutMs = config?.timeoutMs ?? DEFAULT_TIMEOUT_MS
   }
 
-  private convertAttributesToOTLP(
-    attrs: Record<string, any>,
-  ): Array<{ key: string; value: { stringValue?: string; intValue?: string; doubleValue?: string; boolValue?: boolean } }> {
+  private convertAttributesToOTLP(attrs: Record<string, any>): SignozAttribute[] {
     return Object.entries(attrs).map(([key, value]) => {
       if (typeof value === "string") {
         return { key, value: { stringValue: value } }
@@ -218,10 +198,9 @@ export class SignozAdapter implements ILogger {
       },
     }
 
-    const resourceAttributes: Array<{
-      key: string
-      value: { stringValue?: string; intValue?: string; doubleValue?: string; boolValue?: boolean }
-    }> = options?.signozPayload?.resources ? this.convertAttributesToOTLP(options.signozPayload.resources) : []
+    const resourceAttributes: SignozAttribute[] = options?.signozPayload?.resources
+      ? this.convertAttributesToOTLP(options.signozPayload.resources)
+      : []
 
     const resourceLog: SignozResourceLog = {
       scopeLogs: [

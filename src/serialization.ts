@@ -168,9 +168,39 @@ export const createEnhancedResponseSummary = (response: any): string => {
     } else if (typeof value === "string" && value.length > 50) {
       details.push(`${key}: "${value.substring(0, 47)}..."`)
     } else {
-      details.push(`${key}: ${JSON.stringify(value)}`)
+      details.push(`${key}: ${safeStringify(value)}`)
     }
   }
 
   return details.join(", ")
+}
+
+/**
+ * JSON.stringify that never throws: BigInt values become strings, circular references become "[Circular]"
+ * (shared non-circular references are kept), and anything else unserializable returns a placeholder
+ * @param value - Value to serialize
+ * @param space - Optional indentation, as in JSON.stringify
+ * @returns JSON string, or "[Unserializable value]" if serialization fails
+ */
+export const safeStringify = (value: any, space?: number): string => {
+  const ancestors: object[] = []
+  try {
+    const json = JSON.stringify(
+      value,
+      function (this: any, _key, val) {
+        if (typeof val === "bigint") return val.toString()
+        if (typeof val === "object" && val !== null) {
+          // Track the current path only: pop back to this value's parent before checking
+          while (ancestors.length > 0 && ancestors[ancestors.length - 1] !== this) ancestors.pop()
+          if (ancestors.includes(val)) return "[Circular]"
+          ancestors.push(val)
+        }
+        return val
+      },
+      space,
+    )
+    return json ?? String(value)
+  } catch {
+    return "[Unserializable value]"
+  }
 }

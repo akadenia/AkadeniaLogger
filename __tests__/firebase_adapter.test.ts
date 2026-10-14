@@ -123,7 +123,7 @@ describe("FirebaseAdapter Tests", () => {
       expect(crashlyticsInstance.setAttributes).toHaveBeenCalledWith({
         userId: "42",
         nested: '{"a":[1,2]}',
-        big: '"7"',
+        big: "7",
         response_status: "404",
       })
       const [error, message] = crashlyticsInstance.recordError.mock.calls[0]
@@ -137,7 +137,7 @@ describe("FirebaseAdapter Tests", () => {
       circular.self = circular
 
       expect(() => firebaseAdapter.error("Circular", { extraData: { circular } })).not.toThrow()
-      expect(crashlyticsInstance.setAttributes).toHaveBeenCalledWith({ circular: "[Unserializable value]" })
+      expect(crashlyticsInstance.setAttributes).toHaveBeenCalledWith({ circular: '{"self":"[Circular]"}' })
     })
 
     it("should record the original exception", () => {
