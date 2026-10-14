@@ -1,6 +1,7 @@
 import { jest, describe, expect, it, afterEach } from "@jest/globals"
 
 import { Logger, Severity } from "../src/logger"
+import { FirebaseAdapter } from "../src/adapters/firebase_adapter"
 
 afterEach(() => {
   jest.clearAllMocks()
@@ -539,5 +540,30 @@ describe("Logger adapter message sanitization", () => {
       extraData: { userId: "u1" },
       masking: { keys: ["token"], add: ["ssn"], exclude: ["session", "authorization"] },
     })
+  })
+})
+
+describe("Logger masking config with FirebaseAdapter", () => {
+  it("should not send masking rules as Firebase params or Crashlytics attributes", () => {
+    const analytics = {
+      setAnalyticsCollectionEnabled: jest.fn(() => Promise.resolve()),
+      logEvent: jest.fn(),
+    }
+    const crashlytics = { setAttributes: jest.fn(), recordError: jest.fn() }
+    const logger = new Logger({ masking: { add: ["ssn"] } })
+    logger.addLogger(
+      new FirebaseAdapter(
+        () => crashlytics,
+        () => analytics,
+        Severity.Debug,
+        true,
+      ),
+    )
+
+    logger.info("Opened")
+    logger.error("Failed", { extraData: { id: 1 } })
+
+    expect(analytics.logEvent).toHaveBeenCalledWith("Opened", {})
+    expect(crashlytics.setAttributes).toHaveBeenCalledWith({ extraData: { id: 1 } })
   })
 })

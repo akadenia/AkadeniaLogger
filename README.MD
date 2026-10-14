@@ -220,12 +220,12 @@ logger.error("Failed to process file", {
 
 > If combined `extraData` + `response` JSON is over 16KB (Sentry's extra-item limit), the full payload is attached as `extra-data.json`. Sentry extra keeps a searchable summary: a notice plus small top-level scalar fields and `response.status` / `statusText`. Auto-attachments over 5MB are stored as a valid JSON envelope (`{ "truncated": true, "data": "..." }`) so a huge dump cannot reject the event.
 
-Sensitive keys are masked in Sentry extra and `extra-data.json`. The default prefixes are `header`, `auth`, `token`, `password`, `secret`, `credential`, `session`, `cookie`, `sig`, and `csrf` (case-insensitive prefix match). Configure on the logger or per call:
+Sensitive keys are masked in Sentry extra and `extra-data.json`. The default prefixes are `header`, `auth`, `token`, `password`, `passwd`, `secret`, `credential`, `session`, `cookie`, `signature`, `csrf`, `apikey`, `accesskey`, and `privatekey`. A prefix matches at the start of any word in the key, case-insensitively and ignoring separators, so `token` masks `accessToken` and `refresh_token`, and `apikey` masks `x-api-key`. A bare `key` is not masked, so `cacheKey` and `sortKey` stay visible; add it with `masking.add` if you need it. Configure on the logger or per call:
 
 ```typescript
 const logger = new Logger({
   masking: {
-    add: ["ssn"],              // also mask ssn, ssnNumber, ...
+    add: ["ssn"],              // also mask ssn, ssnNumber, user_ssn, ...
     exclude: ["sessionId"],    // leave this exact key visible
   },
 })

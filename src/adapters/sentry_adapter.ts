@@ -150,24 +150,36 @@ export class SentryAdapter implements ILogger {
     return this.safeStringify(summary, 4)
   }
 
+  // One pass over the escaped string: stringifying and encoding candidates in a binary search
+  // freezes the logging call on multi-MB payloads (especially on Hermes)
   private buildTruncatedJsonEnvelope(dataString: string): string {
-    const encoder = new TextEncoder()
-    let left = 0
-    let right = dataString.length
-    let best = this.safeStringify({ truncated: true, data: "" })
+    const prefix = '{"truncated":true,"data":'
+    const suffix = '"}'
+    const escaped = JSON.stringify(dataString) // starts with a quote, so the cut below keeps it
+    const budget = AUTO_ATTACHMENT_MAX_BYTES - prefix.length - suffix.length
 
-    while (left <= right) {
-      const mid = Math.floor((left + right) / 2)
-      const candidate = this.safeStringify({ truncated: true, data: dataString.substring(0, mid) })
-      if (encoder.encode(candidate).length <= AUTO_ATTACHMENT_MAX_BYTES) {
-        best = candidate
-        left = mid + 1
+    // Walk whole tokens (escape sequences, surrogate pairs, single chars) so the cut is never inside one
+    let bytes = 0
+    let end = 0
+    while (end < escaped.length - 1) {
+      const code = escaped.charCodeAt(end)
+      let length = 1
+      let size: number
+      if (code === 0x5c) {
+        length = escaped[end + 1] === "u" ? 6 : 2
+        size = length
+      } else if (code >= 0xd800 && code <= 0xdbff) {
+        length = 2
+        size = 4
       } else {
-        right = mid - 1
+        size = code < 0x80 ? 1 : code < 0x800 ? 2 : 3
       }
+      if (bytes + size > budget) break
+      bytes += size
+      end += length
     }
 
-    return best
+    return `${prefix}${escaped.substring(0, end)}${suffix}`
   }
 
   private truncateDataIfNeeded(processedData: any): string {

@@ -427,4 +427,22 @@ describe("SentryAdapter Tests", () => {
       expect(mockScope.addAttachment).toHaveBeenCalledWith({ filename: "user.txt", data: "hello" })
     })
   })
+
+  describe("buildTruncatedJsonEnvelope", () => {
+    it("should stay valid JSON and within 5MB when cutting through escapes and multi-byte characters", () => {
+      const chunk = 'a"b\\c\n😊é\u0001'
+      const dataString = chunk.repeat(Math.ceil((6 * 1024 * 1024) / chunk.length))
+
+      const start = Date.now()
+      const envelope = (sentryAdapter as any).buildTruncatedJsonEnvelope(dataString)
+      const elapsed = Date.now() - start
+
+      const parsed = JSON.parse(envelope)
+      expect(parsed.truncated).toBe(true)
+      expect(dataString.startsWith(parsed.data)).toBe(true)
+      expect(new TextEncoder().encode(envelope).length).toBeLessThanOrEqual(5 * 1024 * 1024)
+      expect(new TextEncoder().encode(envelope).length).toBeGreaterThan(5 * 1024 * 1024 - 16)
+      expect(elapsed).toBeLessThan(1000)
+    })
+  })
 })

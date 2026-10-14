@@ -1,23 +1,29 @@
 // Enhanced object serialization for better logging visibility
 // Provides detailed object inspection while maintaining security
 
+// Matched against the start of each word in a key (camelCase, snake_case, kebab-case, dot.case),
+// so `token` masks `accessToken` and `refresh_token`, and `apikey` masks `x-api-key`
 export const DEFAULT_SENSITIVE_KEY_PREFIXES = [
   "header",
   "auth",
   "token",
   "password",
+  "passwd",
   "secret",
   "credential",
   "session",
   "cookie",
-  "sig",
+  "signature",
   "csrf",
+  "apikey",
+  "accesskey",
+  "privatekey",
 ] as const
 
 export type SensitiveKeyMasking = {
   /** Replace the default prefix list. Omit to keep the defaults. */
   keys?: string[]
-  /** Extra prefixes to mask, on top of the default list or `keys`. */
+  /** Extra prefixes to mask, on top of the default list or `keys`. Matched at the start of any word in a key. */
   add?: string[]
   /**
    * Do not mask these names (case-insensitive).
@@ -49,19 +55,35 @@ export const mergeSensitiveKeyMasking = (
   return Object.keys(merged).length > 0 ? merged : undefined
 }
 
+const normalizeKeyPart = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]/g, "")
+
+// "x-api-key" -> ["x", "api", "key"], "accessTokenV2" -> ["access", "token", "v2"], "APIKey" -> ["api", "key"]
+const splitKeyWords = (key: string): string[] =>
+  key
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+
 export const isSensitiveKey = (key: string, masking?: SensitiveKeyMasking): boolean => {
   const exclude = (masking?.exclude ?? []).map((item) => item.toLowerCase())
-  const keyLower = key.toLowerCase()
 
-  if (exclude.includes(keyLower)) return false
+  if (exclude.includes(key.toLowerCase())) return false
 
-  const prefixes = [...(masking?.keys ?? DEFAULT_SENSITIVE_KEY_PREFIXES), ...(masking?.add ?? [])].filter(
-    (prefix) => !exclude.includes(prefix.toLowerCase()),
-  )
+  const excludedPrefixes = exclude.map(normalizeKeyPart)
+  const prefixes = [...(masking?.keys ?? DEFAULT_SENSITIVE_KEY_PREFIXES), ...(masking?.add ?? [])]
+    .map(normalizeKeyPart)
+    .filter((prefix) => prefix && !excludedPrefixes.includes(prefix))
 
   if (prefixes.length === 0) return false
 
-  return prefixes.some((prefix) => keyLower.startsWith(prefix.toLowerCase()))
+  // A prefix matches when the key, read from the start of any word, begins with it
+  const words = splitKeyWords(key)
+  return words.some((_, i) => {
+    const rest = words.slice(i).join("")
+    return prefixes.some((prefix) => rest.startsWith(prefix))
+  })
 }
 
 /**
@@ -160,20 +182,44 @@ export const serializeObjectDetailed = (
 /**
  * Deep-copy a value, replacing sensitive keys with `[MASKED]`.
  * Used before sending extraData to remote adapters.
+ * Values with `toJSON` (Date, Buffer, Luxon, Decimal, URL) are converted first, as JSON.stringify would,
+ * and typed arrays are kept as they are. Shared references reuse one masked copy; only real cycles
+ * become "[Circular]".
  */
-export const maskSensitiveData = (value: any, masking?: SensitiveKeyMasking, seen: WeakSet<object> = new WeakSet()): any => {
+export const maskSensitiveData = (
+  value: any,
+  masking?: SensitiveKeyMasking,
+  inProgress: WeakSet<object> = new WeakSet(),
+  done: WeakMap<object, any> = new WeakMap(),
+): any => {
   if (value === null || typeof value !== "object") return value
-  if (seen.has(value)) return "[Circular]"
-  seen.add(value)
+  if (ArrayBuffer.isView(value) || value instanceof ArrayBuffer) return value
+  if (done.has(value)) return done.get(value)
+  if (inProgress.has(value)) return "[Circular]"
 
+  if (typeof value.toJSON === "function") {
+    const json = value.toJSON()
+    if (json !== value) {
+      inProgress.add(value)
+      const masked = maskSensitiveData(json, masking, inProgress, done)
+      inProgress.delete(value)
+      done.set(value, masked)
+      return masked
+    }
+  }
+
+  inProgress.add(value)
+  let masked: any
   if (Array.isArray(value)) {
-    return value.map((item) => maskSensitiveData(item, masking, seen))
+    masked = value.map((item) => maskSensitiveData(item, masking, inProgress, done))
+  } else {
+    masked = {}
+    for (const key of Object.keys(value)) {
+      masked[key] = isSensitiveKey(key, masking) ? "[MASKED]" : maskSensitiveData(value[key], masking, inProgress, done)
+    }
   }
-
-  const masked: Record<string, any> = {}
-  for (const key of Object.keys(value)) {
-    masked[key] = isSensitiveKey(key, masking) ? "[MASKED]" : maskSensitiveData(value[key], masking, seen)
-  }
+  inProgress.delete(value)
+  done.set(value, masked)
   return masked
 }
 

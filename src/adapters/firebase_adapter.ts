@@ -30,7 +30,8 @@ export class FirebaseAdapter implements ILogger {
   }
 
   private captureMessage(message: string, severity: LogSeverity, options?: Options) {
-    const { attachments: _ignored, ...firebaseOptions } = options || {}
+    // Attachments and masking rules are logger plumbing, not Firebase params or Crashlytics keys
+    const { attachments: _attachments, masking: _masking, ...firebaseOptions } = options || {}
 
     switch (severity) {
       case LogSeverity.Exception:

@@ -68,3 +68,87 @@ describe("mergeSensitiveKeyMasking", () => {
     })
   })
 })
+
+describe("isSensitiveKey word matching", () => {
+  it.each([
+    "apiKey",
+    "APIKey",
+    "api_key",
+    "x-api-key",
+    "accessToken",
+    "refresh_token",
+    "userPassword",
+    "db.passwd",
+    "privateKey",
+    "aws_access_key_id",
+    "webhookSignature",
+    "keySecret",
+  ])("masks %s", (key) => {
+    expect(isSensitiveKey(key)).toBe(true)
+  })
+
+  it.each(["signal", "significant", "keyName", "cacheKey", "sortKey", "monkey", "userId", "description"])(
+    "does not mask %s",
+    (key) => {
+      expect(isSensitiveKey(key)).toBe(false)
+    },
+  )
+
+  it("matches custom multi-word prefixes regardless of separators", () => {
+    expect(isSensitiveKey("user-ssn-number", { add: ["ssn"] })).toBe(true)
+    expect(isSensitiveKey("stripeCustomerId", { add: ["customer_id"] })).toBe(true)
+    expect(isSensitiveKey("customer", { add: ["customer_id"] })).toBe(false)
+  })
+
+  it("excludes a default prefix even when written with separators", () => {
+    expect(isSensitiveKey("x-api-key", { exclude: ["api_key"] })).toBe(false)
+    expect(isSensitiveKey("accessToken", { exclude: ["api_key"] })).toBe(true)
+  })
+})
+
+describe("maskSensitiveData values", () => {
+  it("serializes values with toJSON the way JSON.stringify would", () => {
+    const createdAt = new Date("2026-01-01T00:00:00.000Z")
+    const url = new URL("https://example.com/path")
+    const withToJSON = { toJSON: () => ({ id: 1, token: "secret" }) }
+
+    expect(maskSensitiveData({ createdAt, url, withToJSON })).toEqual({
+      createdAt: "2026-01-01T00:00:00.000Z",
+      url: "https://example.com/path",
+      withToJSON: { id: 1, token: "[MASKED]" },
+    })
+  })
+
+  it("keeps typed arrays as they are", () => {
+    const bytes = new Uint8Array([1, 2, 3])
+
+    expect(maskSensitiveData({ bytes }).bytes).toBe(bytes)
+  })
+
+  it("does not report shared references as circular", () => {
+    const shared = { id: 1, token: "secret" }
+
+    expect(maskSensitiveData({ a: shared, b: shared, list: [shared] })).toEqual({
+      a: { id: 1, token: "[MASKED]" },
+      b: { id: 1, token: "[MASKED]" },
+      list: [{ id: 1, token: "[MASKED]" }],
+    })
+  })
+
+  it("still replaces real cycles", () => {
+    const parent: any = { name: "parent" }
+    parent.child = { parent }
+
+    expect(maskSensitiveData(parent)).toEqual({ name: "parent", child: { parent: "[Circular]" } })
+  })
+
+  it("stays bounded on heavily shared object graphs", () => {
+    let node: any = { leaf: true }
+    for (let i = 0; i < 40; i++) node = { l: node, r: node }
+
+    const start = Date.now()
+    maskSensitiveData(node)
+
+    expect(Date.now() - start).toBeLessThan(1000)
+  })
+})
