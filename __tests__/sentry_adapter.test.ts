@@ -196,6 +196,43 @@ describe("SentryAdapter Tests", () => {
       expect(mockScope.setExtra).toHaveBeenCalledWith("extra-data", expect.stringContaining('"status": 404'))
       expect(mockSentry.captureMessage).toHaveBeenCalledWith("Test error", SentrySeverity.Error)
     })
+
+    it("should not send unmasked extraData in the options extra for non-Error exceptions", () => {
+      sentryAdapter.exception("Failed", "string thrown" as unknown as Error, {
+        extraData: { userId: "u1", password: "hunter2", accessToken: "tok" },
+        response: { status: 500, data: { secret: "s" } },
+        signozPayload: { trace_id: "t1", authHeader: "Bearer x" },
+      })
+
+      const optionsExtra = mockScope.setExtra.mock.calls.find((call: any[]) => call[0] === "options")?.[1]
+      expect(optionsExtra).toEqual({ signozPayload: { trace_id: "t1", authHeader: "[MASKED]" } })
+      expect(JSON.stringify(mockScope.setExtra.mock.calls)).not.toContain("hunter2")
+      expect(mockSentry.captureException).toHaveBeenCalled()
+    })
+
+    it("should still capture the event when extraData has a throwing toJSON or getter", () => {
+      const badToJSON = {
+        toJSON() {
+          throw new Error("bad toJSON")
+        },
+      }
+      const badGetter = Object.defineProperty({}, "value", {
+        enumerable: true,
+        get() {
+          throw new Error("bad getter")
+        },
+      })
+
+      sentryAdapter.error("Test error", { extraData: { badToJSON, badGetter, userId: "u1" } })
+
+      expect(mockSentry.captureMessage).toHaveBeenCalledWith("Test error", SentrySeverity.Error)
+      const extra = mockScope.setExtra.mock.calls.find((call: any[]) => call[0] === "extra-data")?.[1] as string
+      expect(JSON.parse(extra)).toEqual({
+        badToJSON: "[Unserializable value]",
+        badGetter: { value: "[Error accessing property]" },
+        userId: "u1",
+      })
+    })
   })
 
   describe("attachments", () => {

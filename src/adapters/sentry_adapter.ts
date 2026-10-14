@@ -276,8 +276,15 @@ export class SentryAdapter implements ILogger {
         scope.setExtra("message", message)
         const exception = options.exception instanceof Error ? options.exception : new Error(message)
         if (!(options.exception instanceof Error)) {
-          const { attachments: _attachments, exception: _exception, ...optionsForExtra } = options
-          scope.setExtra("options", optionsForExtra)
+          // extraData and response are already in "extra-data", masked and size-capped
+          const {
+            attachments: _attachments,
+            exception: _exception,
+            extraData: _extraData,
+            response: _response,
+            ...optionsForExtra
+          } = options
+          scope.setExtra("options", maskSensitiveData(optionsForExtra, options.masking))
           this.Sentry.captureMessage("Sentry.captureException was called with a non Error instance", SentrySeverity.Error)
         }
 

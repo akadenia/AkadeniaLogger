@@ -152,3 +152,26 @@ describe("maskSensitiveData values", () => {
     expect(Date.now() - start).toBeLessThan(1000)
   })
 })
+
+describe("isSensitiveKey whole words and excludes", () => {
+  it.each(["sig", "x-sig", "sigHash", "SIG"])("masks %s as a whole word", (key) => {
+    expect(isSensitiveKey(key)).toBe(true)
+  })
+
+  it("drops the sig word when keys replaces the defaults or it is excluded", () => {
+    expect(isSensitiveKey("sig", { keys: ["token"] })).toBe(false)
+    expect(isSensitiveKey("sig", { exclude: ["sig"] })).toBe(false)
+  })
+
+  it.each(["session_id", "session-id", "SESSION_ID", "sessionId"])("excludes %s via sessionId", (key) => {
+    expect(isSensitiveKey(key, { exclude: ["sessionId"] })).toBe(false)
+  })
+
+  it("resolves rules per masking config", () => {
+    const masking = { add: ["ssn"] }
+
+    expect(isSensitiveKey("ssn", masking)).toBe(true)
+    expect(isSensitiveKey("ssn")).toBe(false)
+    expect(isSensitiveKey("user_ssn", masking)).toBe(true)
+  })
+})

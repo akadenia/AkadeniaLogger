@@ -20,13 +20,16 @@ export const DEFAULT_SENSITIVE_KEY_PREFIXES = [
   "privatekey",
 ] as const
 
+// Matched only as a whole word, so `sig` masks `sig`, `x-sig` and `sigHash` but not `signal`
+export const DEFAULT_SENSITIVE_KEY_WORDS = ["sig"] as const
+
 export type SensitiveKeyMasking = {
-  /** Replace the default prefix list. Omit to keep the defaults. */
+  /** Replace the default prefix list (and the default `sig` word). Omit to keep the defaults. */
   keys?: string[]
   /** Extra prefixes to mask, on top of the default list or `keys`. Matched at the start of any word in a key. */
   add?: string[]
   /**
-   * Do not mask these names (case-insensitive).
+   * Do not mask these names (case-insensitive, ignoring separators: `sessionId` also covers `session_id`).
    * A value that matches a resolved prefix drops that prefix (`session` unmasks `sessionId`).
    * A value that is only an exact key unmasks that key (`sessionId` leaves `session` masked).
    */
@@ -66,23 +69,46 @@ const splitKeyWords = (key: string): string[] =>
     .split(/[^a-z0-9]+/)
     .filter(Boolean)
 
+type MaskingRules = {
+  exclude: Set<string>
+  prefixes: string[]
+  words: Set<string>
+}
+
+const resolvedRules = new WeakMap<SensitiveKeyMasking, MaskingRules>()
+let defaultRules: MaskingRules | undefined
+
+// Normalized once per masking config instead of once per key
+const resolveMaskingRules = (masking?: SensitiveKeyMasking): MaskingRules => {
+  const cached = masking ? resolvedRules.get(masking) : defaultRules
+  if (cached) return cached
+
+  const exclude = new Set((masking?.exclude ?? []).map(normalizeKeyPart))
+  const keep = (term: string) => term !== "" && !exclude.has(term)
+  const rules: MaskingRules = {
+    exclude,
+    prefixes: [...(masking?.keys ?? DEFAULT_SENSITIVE_KEY_PREFIXES), ...(masking?.add ?? [])].map(normalizeKeyPart).filter(keep),
+    words: new Set(masking?.keys ? [] : DEFAULT_SENSITIVE_KEY_WORDS.filter(keep)),
+  }
+
+  if (masking) resolvedRules.set(masking, rules)
+  else defaultRules = rules
+  return rules
+}
+
 export const isSensitiveKey = (key: string, masking?: SensitiveKeyMasking): boolean => {
-  const exclude = (masking?.exclude ?? []).map((item) => item.toLowerCase())
+  const rules = resolveMaskingRules(masking)
+  const normalizedKey = normalizeKeyPart(key)
 
-  if (exclude.includes(key.toLowerCase())) return false
+  if (rules.exclude.has(normalizedKey)) return false
 
-  const excludedPrefixes = exclude.map(normalizeKeyPart)
-  const prefixes = [...(masking?.keys ?? DEFAULT_SENSITIVE_KEY_PREFIXES), ...(masking?.add ?? [])]
-    .map(normalizeKeyPart)
-    .filter((prefix) => prefix && !excludedPrefixes.includes(prefix))
-
-  if (prefixes.length === 0) return false
+  const words = splitKeyWords(key)
+  if (words.some((word) => rules.words.has(word))) return true
 
   // A prefix matches when the key, read from the start of any word, begins with it
-  const words = splitKeyWords(key)
   return words.some((_, i) => {
     const rest = words.slice(i).join("")
-    return prefixes.some((prefix) => rest.startsWith(prefix))
+    return rules.prefixes.some((prefix) => rest.startsWith(prefix))
   })
 }
 
@@ -197,26 +223,31 @@ export const maskSensitiveData = (
   if (done.has(value)) return done.get(value)
   if (inProgress.has(value)) return "[Circular]"
 
-  if (typeof value.toJSON === "function") {
-    const json = value.toJSON()
-    if (json !== value) {
-      inProgress.add(value)
-      const masked = maskSensitiveData(json, masking, inProgress, done)
-      inProgress.delete(value)
-      done.set(value, masked)
-      return masked
-    }
-  }
-
+  // A throwing toJSON, getter or proxy must not drop the whole log event
   inProgress.add(value)
   let masked: any
-  if (Array.isArray(value)) {
-    masked = value.map((item) => maskSensitiveData(item, masking, inProgress, done))
-  } else {
-    masked = {}
-    for (const key of Object.keys(value)) {
-      masked[key] = isSensitiveKey(key, masking) ? "[MASKED]" : maskSensitiveData(value[key], masking, inProgress, done)
+  try {
+    const json = typeof value.toJSON === "function" ? value.toJSON() : value
+    if (json !== value) {
+      masked = maskSensitiveData(json, masking, inProgress, done)
+    } else if (Array.isArray(value)) {
+      masked = value.map((item) => maskSensitiveData(item, masking, inProgress, done))
+    } else {
+      masked = {}
+      for (const key of Object.keys(value)) {
+        if (isSensitiveKey(key, masking)) {
+          masked[key] = "[MASKED]"
+          continue
+        }
+        try {
+          masked[key] = maskSensitiveData(value[key], masking, inProgress, done)
+        } catch {
+          masked[key] = "[Error accessing property]"
+        }
+      }
     }
+  } catch {
+    masked = "[Unserializable value]"
   }
   inProgress.delete(value)
   done.set(value, masked)
