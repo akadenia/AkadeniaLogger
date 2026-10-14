@@ -65,6 +65,22 @@ describe("safeStringify", () => {
 
     expect(safeStringify(value)).toBe("[Unserializable value]")
   })
+
+  it("should not output a function's source", () => {
+    expect(safeStringify(() => "secret")).toBe("[Unserializable value]")
+    expect(safeStringify({ callback: () => "secret" })).toBe("{}")
+  })
+
+  it("should stay bounded on heavily shared object graphs", () => {
+    let node: any = { leaf: true }
+    for (let i = 0; i < 40; i++) node = { l: node, r: node }
+
+    const start = Date.now()
+    const result = safeStringify(node)
+
+    expect(Date.now() - start).toBeLessThan(2000)
+    expect(result).toContain('"[Truncated]"')
+  })
 })
 
 describe("createEnhancedResponseSummary", () => {

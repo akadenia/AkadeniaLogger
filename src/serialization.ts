@@ -5,6 +5,8 @@ const SENSITIVE_KEY_PATTERNS = /^(header|auth|token|password|secret|key|credenti
 const MAX_DEPTH = 3
 const MAX_STRING_LENGTH = 200
 const MAX_ARRAY_ITEMS = 5
+// Shared references are serialized each time they appear, so cap the work on heavily shared graphs
+const MAX_STRINGIFY_OBJECTS = 10000
 
 /**
  * Enhanced object serialization that shows more details than the basic "[object with X keys]"
@@ -177,13 +179,15 @@ export const createEnhancedResponseSummary = (response: any): string => {
 
 /**
  * JSON.stringify that never throws: BigInt values become strings, circular references become "[Circular]"
- * (shared non-circular references are kept), and anything else unserializable returns a placeholder
+ * (shared non-circular references are kept), objects past the first 10000 become "[Truncated]", and anything
+ * else unserializable returns a placeholder
  * @param value - Value to serialize
  * @param space - Optional indentation, as in JSON.stringify
- * @returns JSON string, or "[Unserializable value]" if serialization fails
+ * @returns JSON string, "undefined" for undefined, or "[Unserializable value]" (functions, symbols, errors)
  */
 export const safeStringify = (value: any, space?: number): string => {
   const ancestors: object[] = []
+  let objectCount = 0
   try {
     const json = JSON.stringify(
       value,
@@ -193,13 +197,16 @@ export const safeStringify = (value: any, space?: number): string => {
           // Track the current path only: pop back to this value's parent before checking
           while (ancestors.length > 0 && ancestors[ancestors.length - 1] !== this) ancestors.pop()
           if (ancestors.includes(val)) return "[Circular]"
+          if (++objectCount > MAX_STRINGIFY_OBJECTS) return "[Truncated]"
           ancestors.push(val)
         }
         return val
       },
       space,
     )
-    return json ?? String(value)
+    // JSON.stringify returns undefined for undefined, functions and symbols; never fall back to a function's source
+    if (json !== undefined) return json
+    return value === undefined ? "undefined" : "[Unserializable value]"
   } catch {
     return "[Unserializable value]"
   }

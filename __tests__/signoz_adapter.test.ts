@@ -679,4 +679,50 @@ describe("SignozAdapter Tests", () => {
       await expect(signozAdapter.flush(10)).resolves.toBe(false)
     })
   })
+
+  describe("Review fixes", () => {
+    it("should not send functions or symbols as attributes", async () => {
+      signozAdapter = new SignozAdapter("http://collector:4318/v1/logs", Severity.Debug)
+
+      await signozAdapter.info("Test message", { extraData: { callback: () => "secret", tag: Symbol("t"), kept: "yes" } })
+
+      const attributes = lastFetchBody().resourceLogs[0].scopeLogs[0].logRecords[0].attributes
+      expect(attributes).toEqual([{ key: "kept", value: { stringValue: "yes" } }])
+    })
+
+    it("should not duplicate Content-Type when a custom one is given in another case", async () => {
+      signozAdapter = new SignozAdapter("http://collector:4318/v1/logs", Severity.Debug, {
+        headers: { "content-type": "application/json; charset=utf-8" },
+      })
+
+      await signozAdapter.info("Test message")
+
+      const init = (global.fetch as jest.Mock).mock.calls[0][1] as RequestInit
+      expect(init.headers).toEqual({ "content-type": "application/json; charset=utf-8" })
+    })
+
+    it("should time out a stalled error response body", async () => {
+      jest.useFakeTimers()
+      jest.spyOn(console, "debug").mockImplementation(() => {})
+      global.fetch = jest.fn<typeof fetch>().mockImplementation(async (_url, init) => {
+        return {
+          ok: false,
+          statusText: "Server Error",
+          text: () =>
+            new Promise<string>((_resolve, reject) => {
+              init?.signal?.addEventListener("abort", () => reject(new Error("aborted")))
+            }),
+        } as Response
+      })
+      signozAdapter = new SignozAdapter("http://collector:4318/v1/logs", Severity.Debug, { timeoutMs: 100 })
+
+      const capturePromise = (signozAdapter as any).captureMessage("Test", SignozSeverity.Info)
+      await jest.advanceTimersByTimeAsync(150)
+
+      expect(await capturePromise).toBe(false)
+      expect(console.debug).toHaveBeenCalledWith("Server Error: ")
+      ;(console.debug as jest.Mock).mockRestore()
+      jest.useRealTimers()
+    })
+  })
 })

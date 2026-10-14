@@ -9,7 +9,7 @@
       "@semantic-release/exec",
       {
         "prepareCmd": "pnpm run build",
-        "successCmd": "bash scripts/commit-release-assets.sh ${nextRelease.version}",
+        "successCmd": "bash scripts/commit-release-assets.sh ${nextRelease.version} || echo 'WARNING: release assets PR for ${nextRelease.version} failed. The package is published; sync package.json, pnpm-lock.yaml and CHANGELOG.md to main manually'",
         "verifyConditionsCmd": "bash scripts/preflight-release.sh"
       }
     ],

@@ -77,30 +77,34 @@ export class SignozAdapter implements ILogger {
   constructor(url: string | URL, minimumLogLevel = Severity.Debug, config?: SignozAdapterConfig) {
     this.minimumLogLevel = minimumLogLevel
     this.url = typeof url === "string" ? new URL(url) : url
-    this.headers = { "Content-Type": "application/json", ...config?.headers }
+    const headers = config?.headers ?? {}
+    const hasContentType = Object.keys(headers).some((key) => key.toLowerCase() === "content-type")
+    this.headers = hasContentType ? { ...headers } : { "Content-Type": "application/json", ...headers }
     this.timeoutMs = config?.timeoutMs ?? DEFAULT_TIMEOUT_MS
   }
 
   private convertAttributesToOTLP(attrs: Record<string, any>): SignozAttribute[] {
-    return Object.entries(attrs).map(([key, value]) => {
-      if (typeof value === "string") {
-        return { key, value: { stringValue: value } }
-      } else if (typeof value === "number") {
-        if (Number.isInteger(value)) {
+    return Object.entries(attrs)
+      .filter(([, value]) => typeof value !== "function" && typeof value !== "symbol")
+      .map(([key, value]) => {
+        if (typeof value === "string") {
+          return { key, value: { stringValue: value } }
+        } else if (typeof value === "number") {
+          if (Number.isInteger(value)) {
+            return { key, value: { intValue: value.toString() } }
+          } else {
+            return { key, value: { doubleValue: value.toString() } }
+          }
+        } else if (typeof value === "bigint") {
           return { key, value: { intValue: value.toString() } }
+        } else if (typeof value === "boolean") {
+          return { key, value: { boolValue: value } }
+        } else if (value === null || value === undefined) {
+          return { key, value: { stringValue: "" } }
         } else {
-          return { key, value: { doubleValue: value.toString() } }
+          return { key, value: { stringValue: safeStringify(value) } }
         }
-      } else if (typeof value === "bigint") {
-        return { key, value: { intValue: value.toString() } }
-      } else if (typeof value === "boolean") {
-        return { key, value: { boolValue: value } }
-      } else if (value === null || value === undefined) {
-        return { key, value: { stringValue: "" } }
-      } else {
-        return { key, value: { stringValue: safeStringify(value) } }
-      }
-    })
+      })
   }
 
   private captureMessage(message: string, severity: SignozSeverity, options?: Options): Promise<boolean> {
@@ -131,9 +135,8 @@ export class SignozAdapter implements ILogger {
         signal: controller.signal,
       })
 
-      clearTimeout(timeoutId)
-
       if (!response.ok) {
+        // Still under the timeout: aborting also cancels a stalled body read
         const text = await response.text().catch(() => "")
         console.debug(`${response.statusText}: ${text}`)
         return false
@@ -141,13 +144,14 @@ export class SignozAdapter implements ILogger {
 
       return true
     } catch (err) {
-      clearTimeout(timeoutId)
       if (err instanceof Error && err.name === "AbortError") {
         console.debug("SignozAdapter fetch timeout")
         return false
       }
       console.debug("SignozAdapter fetch error:", err)
       return false
+    } finally {
+      clearTimeout(timeoutId)
     }
   }
 

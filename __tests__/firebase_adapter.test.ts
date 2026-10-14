@@ -176,4 +176,57 @@ describe("FirebaseAdapter Tests", () => {
       expect(analyticsInstance.logAppOpen).toHaveBeenCalled()
     })
   })
+
+  describe("Firebase naming rules", () => {
+    it.each([
+      ["error", "e_error"],
+      ["Session Start", "e_Session_Start"],
+      ["firebase_sync", "e_firebase_sync"],
+      ["GA_event", "e_GA_event"],
+      ["errors", "errors"],
+    ])("should map event name %s to %s", (message, expected) => {
+      firebaseAdapter.info(message)
+
+      expect(analyticsInstance.logEvent).toHaveBeenCalledWith(expected, {})
+    })
+
+    it("should prefix reserved param names", () => {
+      firebaseAdapter.info("Event", { extraData: { ga_session: "1", google_id: "2", "2fa": true } })
+
+      expect(analyticsInstance.logEvent).toHaveBeenCalledWith("Event", { p_ga_session: "1", p_google_id: "2", p_2fa: "true" })
+    })
+
+    it("should keep every value when keys map to the same param name", () => {
+      firebaseAdapter.info("Event", { extraData: { "user id": 1, "user-id": 2, user_id: 3 } })
+
+      expect(analyticsInstance.logEvent).toHaveBeenCalledWith("Event", { user_id: 1, user_id_2: 2, user_id_3: 3 })
+    })
+
+    it("should keep suffixed param names within 40 characters", () => {
+      const key = "k".repeat(45)
+
+      firebaseAdapter.info("Event", { extraData: { [key]: 1, [`${key}!`]: 2 } })
+
+      const [, params] = analyticsInstance.logEvent.mock.calls[0]
+      expect(Object.keys(params)).toEqual(["k".repeat(40), `${"k".repeat(38)}_2`])
+    })
+
+    it("should send at most 25 params", () => {
+      const extraData = Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`key${i}`, i]))
+
+      firebaseAdapter.info("Event", { extraData, response: { status: 500 } })
+
+      const [, params] = analyticsInstance.logEvent.mock.calls[0]
+      expect(Object.keys(params)).toHaveLength(25)
+      expect(params.key24).toBe(24)
+    })
+
+    it("should skip functions and symbols", () => {
+      firebaseAdapter.info("Event", { extraData: { callback: () => "secret", tag: Symbol("t"), kept: "yes" } })
+      firebaseAdapter.error("Failed", { extraData: { callback: () => "secret", kept: "yes" } })
+
+      expect(analyticsInstance.logEvent).toHaveBeenCalledWith("Event", { kept: "yes" })
+      expect(crashlyticsInstance.setAttributes).toHaveBeenCalledWith({ kept: "yes" })
+    })
+  })
 })

@@ -220,7 +220,7 @@ const firebaseAdapter = new FirebaseAdapter(crashlytics, analytics, Severity.Inf
 logger.addLogger(firebaseAdapter)
 ```
 
-> Info and warn logs become Analytics events. Event names are made Firebase-safe (letters, digits and underscores, starting with a letter, max 40 chars), and `extraData` plus `response.status`/`statusText` are flattened into event params (values up to 100 chars). Errors and exceptions go to Crashlytics with the same fields as string custom keys.
+> Info and warn logs become Analytics events. Event and param names are made Firebase-safe (letters, digits and underscores, starting with a letter, max 40 chars); reserved names such as `error` or `session_start` and the `firebase_`/`google_`/`ga_` prefixes get an `e_` (events) or `p_` (params) prefix. `extraData` plus `response.status`/`statusText` are flattened into at most 25 event params (values up to 100 chars, functions skipped). Errors and exceptions go to Crashlytics with the same fields as string custom keys.
 
 ---
 
