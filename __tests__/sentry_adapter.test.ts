@@ -204,10 +204,60 @@ describe("SentryAdapter Tests", () => {
         signozPayload: { trace_id: "t1", authHeader: "Bearer x" },
       })
 
-      const optionsExtra = mockScope.setExtra.mock.calls.find((call: any[]) => call[0] === "options")?.[1]
-      expect(optionsExtra).toEqual({ signozPayload: { trace_id: "t1", authHeader: "[MASKED]" } })
+      const optionsExtra = mockScope.setExtra.mock.calls.find((call: any[]) => call[0] === "options")?.[1] as string
+      expect(JSON.parse(optionsExtra)).toEqual({ signozPayload: { trace_id: "t1", authHeader: "[MASKED]" } })
       expect(JSON.stringify(mockScope.setExtra.mock.calls)).not.toContain("hunter2")
       expect(mockSentry.captureException).toHaveBeenCalled()
+    })
+
+    it("should cap the options extra and leave out the masking rules", () => {
+      sentryAdapter.exception("Failed", "string thrown" as unknown as Error, {
+        signozPayload: { attributes: { blob: "x".repeat(40 * 1024) } },
+        masking: { exclude: ["session"] },
+      })
+
+      const optionsExtra = mockScope.setExtra.mock.calls.find((call: any[]) => call[0] === "options")?.[1] as string
+      expect(new TextEncoder().encode(optionsExtra).length).toBeLessThanOrEqual(16 * 1024)
+      expect(optionsExtra).not.toContain("exclude")
+    })
+
+    it("should send the non-Error notice outside the scope that holds the attachments", () => {
+      const order: string[] = []
+      mockSentry.withScope = jest.fn((callback: any) => {
+        order.push("scope:start")
+        callback(mockScope)
+        order.push("scope:end")
+      })
+      mockSentry.captureMessage = jest.fn(() => order.push("notice"))
+      mockSentry.captureException = jest.fn(() => order.push("exception"))
+
+      sentryAdapter.exception("Failed", "string thrown" as unknown as Error, {
+        attachments: [{ filename: "log.txt", data: "log" }],
+      })
+
+      expect(order).toEqual(["scope:start", "exception", "scope:end", "notice"])
+    })
+
+    it("should still capture the event when addAttachment throws", () => {
+      mockScope.addAttachment = jest.fn(() => {
+        throw new Error("attachment rejected")
+      })
+
+      sentryAdapter.error("Test error", {
+        extraData: { payload: "x".repeat(20 * 1024) },
+        attachments: [{ filename: "log.txt", data: "log" }],
+      })
+
+      expect(mockSentry.captureMessage).toHaveBeenCalledWith("Test error", SentrySeverity.Error)
+      const extra = mockScope.setExtra.mock.calls.find((call: any[]) => call[0] === "extra-data")?.[1] as string
+      expect(extra).toContain("[TRUNCATED]")
+    })
+
+    it("should keep the attachment notice when extraData has a notice field", () => {
+      sentryAdapter.error("Test error", { extraData: { notice: "maintenance", payload: "x".repeat(20 * 1024) } })
+
+      const extra = mockScope.setExtra.mock.calls.find((call: any[]) => call[0] === "extra-data")?.[1] as string
+      expect(JSON.parse(extra).notice).toBe("EXTRA DATA INCLUDED AS FILE ATTACHMENT, CHECK ATTACHMENTS SECTION")
     })
 
     it("should still capture the event when extraData has a throwing toJSON or getter", () => {

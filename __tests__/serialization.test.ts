@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@jest/globals"
-import { isSensitiveKey, maskSensitiveData, mergeSensitiveKeyMasking } from "../src/serialization"
+import { createEnhancedResponseSummary, isSensitiveKey, maskSensitiveData, mergeSensitiveKeyMasking } from "../src/serialization"
 
 describe("isSensitiveKey", () => {
   it("masks default prefixes and not vague key names", () => {
@@ -173,5 +173,20 @@ describe("isSensitiveKey whole words and excludes", () => {
     expect(isSensitiveKey("ssn", masking)).toBe(true)
     expect(isSensitiveKey("ssn")).toBe(false)
     expect(isSensitiveKey("user_ssn", masking)).toBe(true)
+  })
+})
+
+describe("masking config plumbing", () => {
+  it("keeps the same config object when there is nothing to merge", () => {
+    const base = { add: ["ssn"] }
+
+    expect(mergeSensitiveKeyMasking(base, undefined)).toBe(base)
+    expect(mergeSensitiveKeyMasking(undefined, base)).toBe(base)
+  })
+
+  it("applies masking rules to response summaries", () => {
+    const response = { status: 200, ssn: "111", sessionId: "s1" }
+
+    expect(createEnhancedResponseSummary(response, { add: ["ssn"], exclude: ["session"] })).toBe('status: 200, sessionId: "s1"')
   })
 })

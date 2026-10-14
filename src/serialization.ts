@@ -45,6 +45,9 @@ export const mergeSensitiveKeyMasking = (
   override?: SensitiveKeyMasking,
 ): SensitiveKeyMasking | undefined => {
   if (!base && !override) return undefined
+  // Keep the same object when there is nothing to merge, so resolved rules stay cached across calls
+  if (!override) return base
+  if (!base) return override
 
   const keys = override?.keys ?? base?.keys
   const add = [...(base?.add ?? []), ...(override?.add ?? [])]
@@ -78,7 +81,7 @@ type MaskingRules = {
 const resolvedRules = new WeakMap<SensitiveKeyMasking, MaskingRules>()
 let defaultRules: MaskingRules | undefined
 
-// Normalized once per masking config instead of once per key
+// Normalized once per masking config instead of once per key; configs are treated as immutable
 const resolveMaskingRules = (masking?: SensitiveKeyMasking): MaskingRules => {
   const cached = masking ? resolvedRules.get(masking) : defaultRules
   if (cached) return cached
@@ -273,9 +276,10 @@ export const createDetailedObjectSummary = (obj: any, label?: string, masking?: 
 /**
  * Enhanced response summary that shows more details
  * @param response - Response object to summarize
+ * @param masking - Optional masking rules for header and property names
  * @returns Detailed string representation of response
  */
-export const createEnhancedResponseSummary = (response: any): string => {
+export const createEnhancedResponseSummary = (response: any, masking?: SensitiveKeyMasking): string => {
   if (!response || typeof response !== "object") {
     return "No response"
   }
@@ -294,7 +298,7 @@ export const createEnhancedResponseSummary = (response: any): string => {
     if (typeof response.headers === "object") {
       const headerKeys = Object.keys(response.headers)
       const safeHeaders = headerKeys
-        .filter((key) => !isSensitiveKey(key) && !key.toLowerCase().includes("authorization"))
+        .filter((key) => !isSensitiveKey(key, masking) && !key.toLowerCase().includes("authorization"))
         .slice(0, 3)
 
       if (safeHeaders.length > 0) {
@@ -313,7 +317,7 @@ export const createEnhancedResponseSummary = (response: any): string => {
 
   // Other safe properties
   const otherKeys = Object.keys(response).filter(
-    (key) => !["status", "statusText", "ok", "url", "type", "headers", "bodyUsed"].includes(key) && !isSensitiveKey(key),
+    (key) => !["status", "statusText", "ok", "url", "type", "headers", "bodyUsed"].includes(key) && !isSensitiveKey(key, masking),
   )
 
   for (const key of otherKeys.slice(0, 5)) {

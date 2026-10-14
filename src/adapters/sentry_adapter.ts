@@ -130,7 +130,7 @@ export class SentryAdapter implements ILogger {
   }
 
   private buildSearchableExtraSummary(processedData: any): string {
-    const summary: Record<string, unknown> = { notice: EXTRA_DATA_ATTACHMENT_NOTICE }
+    const summary: Record<string, unknown> = {}
 
     if (processedData && typeof processedData === "object") {
       for (const [key, value] of Object.entries(processedData)) {
@@ -147,6 +147,8 @@ export class SentryAdapter implements ILogger {
       }
     }
 
+    // Set last so an extraData field named "notice" can't hide the pointer to the attachment
+    summary.notice = EXTRA_DATA_ATTACHMENT_NOTICE
     return this.safeStringify(summary, 4)
   }
 
@@ -225,8 +227,13 @@ export class SentryAdapter implements ILogger {
   private tryAddAttachment(scope: Scope, attachment: NormalizedAttachment): boolean {
     const addAttachment = (scope as Scope & { addAttachment?: unknown }).addAttachment
     if (typeof addAttachment !== "function") return false
-    addAttachment.call(scope, attachment)
-    return true
+    try {
+      addAttachment.call(scope, attachment)
+      return true
+    } catch {
+      // A rejected attachment must not drop the event itself
+      return false
+    }
   }
 
   private processAttachments(attachments: Attachment[]): NormalizedAttachment[] {
@@ -251,6 +258,8 @@ export class SentryAdapter implements ILogger {
   }
 
   private captureMessage(message: string, severity: SeverityLevel, options?: Options) {
+    let capturedNonError = false
+
     this.Sentry.withScope((scope: Scope) => {
       if (options?.extraData || options?.response) {
         const processedData = this.processData(options.extraData, options.response, options.masking)
@@ -282,10 +291,11 @@ export class SentryAdapter implements ILogger {
             exception: _exception,
             extraData: _extraData,
             response: _response,
+            masking: _masking,
             ...optionsForExtra
           } = options
-          scope.setExtra("options", maskSensitiveData(optionsForExtra, options.masking))
-          this.Sentry.captureMessage("Sentry.captureException was called with a non Error instance", SentrySeverity.Error)
+          scope.setExtra("options", this.truncateDataIfNeeded(maskSensitiveData(optionsForExtra, options.masking)))
+          capturedNonError = true
         }
 
         this.Sentry.captureException(exception, undefined, scope)
@@ -293,6 +303,11 @@ export class SentryAdapter implements ILogger {
         this.Sentry.captureMessage(message, severity)
       }
     })
+
+    // Outside the scope above so this notice doesn't upload the event's attachments a second time
+    if (capturedNonError) {
+      this.Sentry.captureMessage("Sentry.captureException was called with a non Error instance", SentrySeverity.Error)
+    }
   }
 
   trace(message: string, options?: Options | undefined): void {
