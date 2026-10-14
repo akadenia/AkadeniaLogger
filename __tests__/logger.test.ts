@@ -1,6 +1,6 @@
 import { jest, describe, expect, it, afterEach } from "@jest/globals"
 
-import { Logger, Severity } from "../src/logger"
+import { Logger, PredefinedLogEvents, Severity } from "../src/logger"
 
 afterEach(() => {
   jest.clearAllMocks()
@@ -484,5 +484,55 @@ describe("Logger adapter message sanitization", () => {
 
     expect(mockAdapter1.error).toHaveBeenCalledWith("Error Message", undefined)
     expect(mockAdapter2.error).toHaveBeenCalledWith("Error Message", undefined)
+  })
+})
+
+describe("Logger predefinedEvent", () => {
+  it("should log to console once regardless of the number of adapters", () => {
+    const logger = new Logger({ consoleEnabled: true })
+    logger.addLogger({ predefinedEvent: jest.fn() } as any)
+    logger.addLogger({ predefinedEvent: jest.fn() } as any)
+    const spy = jest.spyOn(console, "log").mockImplementation(() => {})
+
+    logger.predefinedEvent({ type: PredefinedLogEvents.AppOpen })
+
+    expect(spy).toHaveBeenCalledTimes(1)
+    spy.mockRestore()
+  })
+
+  it("should log to console when no adapters are registered", () => {
+    const logger = new Logger({ consoleEnabled: true })
+    const spy = jest.spyOn(console, "log").mockImplementation(() => {})
+
+    logger.predefinedEvent({ type: PredefinedLogEvents.AppOpen })
+
+    expect(spy).toHaveBeenCalledWith("PREDEFINED EVENT:")
+    spy.mockRestore()
+  })
+})
+
+describe("Logger flush", () => {
+  it("should resolve true when every adapter flushes", async () => {
+    const logger = new Logger()
+    logger.addLogger({ flush: jest.fn(() => Promise.resolve(true)) } as any)
+    logger.addLogger({ flush: jest.fn() } as any)
+    logger.addLogger({} as any)
+
+    await expect(logger.flush(100)).resolves.toBe(true)
+  })
+
+  it("should resolve false when an adapter times out or throws", async () => {
+    const timedOut = new Logger()
+    timedOut.addLogger({ flush: jest.fn(() => Promise.resolve(false)) } as any)
+
+    const throwing = new Logger()
+    throwing.addLogger({
+      flush: jest.fn(() => {
+        throw new Error("flush failed")
+      }),
+    } as any)
+
+    await expect(timedOut.flush(100)).resolves.toBe(false)
+    await expect(throwing.flush(100)).resolves.toBe(false)
   })
 })

@@ -15,9 +15,8 @@
     "build": "rm -rf dist && tsc -p tsconfig.json",
     "test": "jest",
     "format": "prettier --write \"./**/*.{ts,tsx,js,jsx,json,yml}\"",
-    "lint": "prettier --check \"./**/*.{ts,tsx,js,jsx,json,yml}\"",
+    "lint": "prettier --check \"./**/*.{ts,tsx,js,jsx,json,yml}\" && tsc --noEmit -p tsconfig.json",
     "prepare": "pnpm build",
-    "version": "git add -A src",
     "updateLink": "pnpm build && pnpm rm -g @akadenia/logger && pnpm add -g ."
   },
   "packageManager": "pnpm@11.9.0",
@@ -46,14 +45,10 @@
     "@semantic-release/git": "^11.0.1",
     "@types/node": "^22.20.5",
     "jest": "^30.5.2",
-    "js-yaml": "^5.4.3",
     "prettier": "^3.9.10",
     "semantic-release": "25.0.9",
     "ts-jest": "^29.4.14",
     "typescript": "^5.8.3"
-  },
-  "dependencies": {
-    "@sentry/types": "^10.75.2"
   },
   "engines": {
     "node": ">=22.x",

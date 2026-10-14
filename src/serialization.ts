@@ -10,7 +10,7 @@ const MAX_ARRAY_ITEMS = 5
  * Enhanced object serialization that shows more details than the basic "[object with X keys]"
  * @param obj - Object to serialize
  * @param depth - Current recursion depth (internal use)
- * @param visited - Set of visited objects to prevent circular references
+ * @param visited - Objects on the current path, used to detect circular references
  * @returns Detailed string representation of the object
  */
 export const serializeObjectDetailed = (obj: any, depth: number = 0, visited: WeakSet<object> = new WeakSet()): string => {
@@ -26,19 +26,21 @@ export const serializeObjectDetailed = (obj: any, depth: number = 0, visited: We
     return String(obj)
   }
 
-  // Prevent circular references
+  // Prevent circular references. Only the current path is tracked (added before recursing,
+  // removed after), so shared non-circular references are still serialized
   if (visited.has(obj)) {
     return "[Circular Reference]"
   }
-  visited.add(obj)
 
   // Handle arrays
   if (Array.isArray(obj)) {
     if (obj.length === 0) return "[]"
 
+    visited.add(obj)
     const items = obj
       .slice(0, MAX_ARRAY_ITEMS)
       .map((item) => (depth < MAX_DEPTH ? serializeObjectDetailed(item, depth + 1, visited) : "[...]"))
+    visited.delete(obj)
 
     const suffix = obj.length > MAX_ARRAY_ITEMS ? `, ... ${obj.length - MAX_ARRAY_ITEMS} more` : ""
     return `[${items.join(", ")}${suffix}]`
@@ -64,6 +66,7 @@ export const serializeObjectDetailed = (obj: any, depth: number = 0, visited: We
 
   const entries: string[] = []
 
+  visited.add(obj)
   for (const key of keys) {
     try {
       const value = obj[key]
@@ -90,6 +93,7 @@ export const serializeObjectDetailed = (obj: any, depth: number = 0, visited: We
       entries.push(`${key}: [Error accessing property]`)
     }
   }
+  visited.delete(obj)
 
   return `{${entries.join(", ")}}`
 }

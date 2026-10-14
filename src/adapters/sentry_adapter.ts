@@ -1,5 +1,4 @@
 import { Severity, ILogger, Options, ApiResponse } from "../logger"
-import { Client, Scope, SeverityLevel } from "@sentry/types"
 
 export enum SentrySeverity {
   Debug = "debug",
@@ -9,8 +8,18 @@ export enum SentrySeverity {
   Fatal = "fatal",
 }
 
-interface SentryClient extends Client {
+type SeverityLevel = "fatal" | "error" | "warning" | "log" | "info" | "debug"
+
+// Minimal shape of the Sentry SDK used by this adapter (any @sentry/* SDK namespace satisfies it)
+interface Scope {
+  setExtra(key: string, extra: unknown): unknown
+}
+
+interface SentryClient {
   withScope(callback: (scope: Scope) => void): void
+  captureMessage(message: string, level?: SeverityLevel): unknown
+  captureException(exception: unknown, hint?: unknown, scope?: Scope): unknown
+  flush(timeout?: number): PromiseLike<boolean>
 }
 
 export class SentryAdapter implements ILogger {
@@ -54,15 +63,17 @@ export class SentryAdapter implements ILogger {
   }
 
   private safeStringify(value: any, space?: number): string {
-    const seen = new WeakSet()
+    const ancestors: object[] = []
     try {
       return JSON.stringify(
         value,
-        (key, val) => {
+        function (this: any, _key, val) {
           if (typeof val === "bigint") return val.toString()
           if (typeof val === "object" && val !== null) {
-            if (seen.has(val)) return "[Circular]"
-            seen.add(val)
+            // Track the current path only, so shared (non-circular) references are kept
+            while (ancestors.length > 0 && ancestors[ancestors.length - 1] !== this) ancestors.pop()
+            if (ancestors.includes(val)) return "[Circular]"
+            ancestors.push(val)
           }
           return val
         },
@@ -185,13 +196,13 @@ export class SentryAdapter implements ILogger {
   trace(message: string, options?: Options | undefined): void {
     if (this.minimumLogLevel > Severity.Trace) return
 
-    this.captureMessage(message, SentrySeverity.Info, options)
+    this.captureMessage(message, SentrySeverity.Debug, options)
   }
 
   debug(message: string, options?: Options | undefined): void {
     if (this.minimumLogLevel > Severity.Debug) return
 
-    this.captureMessage(message, SentrySeverity.Info, options)
+    this.captureMessage(message, SentrySeverity.Debug, options)
   }
 
   info(message: string, options?: Options | undefined): void {
@@ -216,7 +227,7 @@ export class SentryAdapter implements ILogger {
     this.captureMessage(message, SentrySeverity.Fatal, { ...options, exception })
   }
 
-  flush(duration: number): void {
-    this.Sentry.flush(duration)
+  flush(duration: number): Promise<boolean> {
+    return Promise.resolve(this.Sentry.flush(duration))
   }
 }

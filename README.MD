@@ -186,7 +186,10 @@ logger.addLogger(sentryAdapter)
 ```typescript
 import { SignozAdapter, Severity } from "@akadenia/logger"
 
-const signozAdapter = new SignozAdapter("https://ingest.signoz.io/logs", Severity.Info)
+const signozAdapter = new SignozAdapter("https://ingest.signoz.io/logs", Severity.Info, {
+  headers: { "signoz-ingestion-key": process.env.SIGNOZ_INGESTION_KEY! }, // optional extra headers
+  timeoutMs: 5000, // optional, defaults to 5000
+})
 logger.addLogger(signozAdapter)
 
 // With trace context
@@ -199,7 +202,12 @@ logger.info("Request processed", {
     attributes: { "http.method": "GET", "http.route": "/users" },
   },
 })
+
+// Before a short-lived process exits (CLI, serverless), wait for pending requests
+await logger.flush(2000)
 ```
+
+> `severityNumber` defaults to the OpenTelemetry value for the log level (trace 1, debug 5, info 9, warn 13, error 17, exception 21) unless `signozPayload.severity_number` is set.
 
 ### Firebase (Crashlytics + Analytics)
 
@@ -208,9 +216,11 @@ import { FirebaseAdapter, Severity } from "@akadenia/logger"
 import crashlytics from "@react-native-firebase/crashlytics"
 import analytics from "@react-native-firebase/analytics"
 
-const firebaseAdapter = new FirebaseAdapter(crashlytics, analytics, Severity.Info, true)
+const firebaseAdapter = new FirebaseAdapter(crashlytics, analytics, Severity.Info, true) // last arg: analytics collection, defaults to true
 logger.addLogger(firebaseAdapter)
 ```
+
+> Info and warn logs become Analytics events. Event names are made Firebase-safe (letters, digits and underscores, starting with a letter, max 40 chars), and `extraData` plus `response.status`/`statusText` are flattened into event params (values up to 100 chars). Errors and exceptions go to Crashlytics with the same fields as string custom keys.
 
 ---
 

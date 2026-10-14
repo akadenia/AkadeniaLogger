@@ -551,4 +551,132 @@ describe("SignozAdapter Tests", () => {
       jest.useRealTimers()
     })
   })
+
+  describe("Unserializable data", () => {
+    beforeEach(() => {
+      signozAdapter = new SignozAdapter("http://collector:4318/v1/logs", Severity.Debug)
+    })
+
+    it("should not reject when extraData contains a circular reference", async () => {
+      const circular: any = { name: "loop" }
+      circular.self = circular
+
+      await expect(signozAdapter.info("Test message", { extraData: { circular } })).resolves.toBeUndefined()
+
+      const attributes = lastFetchBody().resourceLogs[0].scopeLogs[0].logRecords[0].attributes
+      expect(attributes).toContainEqual({ key: "circular", value: { stringValue: '{"name":"loop","self":"[Circular]"}' } })
+    })
+
+    it("should keep shared references that are not circular", async () => {
+      const shared = { id: 1 }
+
+      await signozAdapter.info("Test message", { extraData: { pair: { a: shared, b: shared } } })
+
+      const attributes = lastFetchBody().resourceLogs[0].scopeLogs[0].logRecords[0].attributes
+      expect(attributes).toContainEqual({ key: "pair", value: { stringValue: '{"a":{"id":1},"b":{"id":1}}' } })
+    })
+
+    it("should send BigInt values as intValue", async () => {
+      await signozAdapter.info("Test message", { extraData: { big: BigInt("9007199254740993"), nested: { n: BigInt(5) } } })
+
+      const attributes = lastFetchBody().resourceLogs[0].scopeLogs[0].logRecords[0].attributes
+      expect(attributes).toContainEqual({ key: "big", value: { intValue: "9007199254740993" } })
+      expect(attributes).toContainEqual({ key: "nested", value: { stringValue: '{"n":"5"}' } })
+    })
+  })
+
+  describe("Severity numbers", () => {
+    beforeEach(() => {
+      signozAdapter = new SignozAdapter("http://collector:4318/v1/logs", Severity.Trace)
+    })
+
+    it.each([
+      ["trace", 1],
+      ["debug", 5],
+      ["info", 9],
+      ["warn", 13],
+      ["error", 17],
+    ] as const)("should default severityNumber for %s to %i", async (level, expected) => {
+      await signozAdapter[level]("Test message")
+
+      expect(lastFetchBody().resourceLogs[0].scopeLogs[0].logRecords[0].severityNumber).toBe(expected)
+    })
+
+    it("should default severityNumber for exceptions to 21", async () => {
+      await signozAdapter.exception("Test message", new Error("boom"))
+
+      expect(lastFetchBody().resourceLogs[0].scopeLogs[0].logRecords[0].severityNumber).toBe(21)
+    })
+  })
+
+  describe("Config", () => {
+    it("should send custom headers alongside Content-Type", async () => {
+      signozAdapter = new SignozAdapter("http://collector:4318/v1/logs", Severity.Debug, {
+        headers: { "signoz-ingestion-key": "ingest-key" },
+      })
+
+      await signozAdapter.info("Test message")
+
+      const init = (global.fetch as jest.Mock).mock.calls[0][1] as RequestInit
+      expect(init.headers).toEqual({ "Content-Type": "application/json", "signoz-ingestion-key": "ingest-key" })
+    })
+
+    it("should default the timeout to 5000ms", () => {
+      signozAdapter = new SignozAdapter("http://collector:4318/v1/logs")
+
+      expect(signozAdapter.timeoutMs).toBe(5000)
+    })
+
+    it("should abort after the configured timeout", async () => {
+      jest.useFakeTimers()
+      jest.spyOn(console, "debug").mockImplementation(() => {})
+      global.fetch = jest.fn<typeof fetch>().mockImplementation((_url, init) => {
+        return new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            const err = new Error("The operation was aborted")
+            err.name = "AbortError"
+            reject(err)
+          })
+        })
+      })
+      signozAdapter = new SignozAdapter("http://collector:4318/v1/logs", Severity.Debug, { timeoutMs: 100 })
+
+      const capturePromise = (signozAdapter as any).captureMessage("Test", SignozSeverity.Info)
+      jest.advanceTimersByTime(150)
+
+      expect(await capturePromise).toBe(false)
+      expect(console.debug).toHaveBeenCalledWith("SignozAdapter fetch timeout")
+      ;(console.debug as jest.Mock).mockRestore()
+      jest.useRealTimers()
+    })
+  })
+
+  describe("flush", () => {
+    beforeEach(() => {
+      signozAdapter = new SignozAdapter("http://collector:4318/v1/logs", Severity.Debug)
+    })
+
+    it("should resolve true when nothing is pending", async () => {
+      await expect(signozAdapter.flush(100)).resolves.toBe(true)
+    })
+
+    it("should wait for in-flight requests", async () => {
+      let resolveFetch: (response: Response) => void = () => {}
+      global.fetch = jest.fn<typeof fetch>().mockReturnValue(new Promise<Response>((resolve) => (resolveFetch = resolve)))
+
+      signozAdapter.info("Test message")
+      const flushed = signozAdapter.flush(1000)
+      resolveFetch(new Response(null, { status: 200 }))
+
+      await expect(flushed).resolves.toBe(true)
+    })
+
+    it("should resolve false when requests do not finish in time", async () => {
+      global.fetch = jest.fn<typeof fetch>().mockReturnValue(new Promise<Response>(() => {}))
+
+      signozAdapter.info("Test message")
+
+      await expect(signozAdapter.flush(10)).resolves.toBe(false)
+    })
+  })
 })

@@ -161,4 +161,35 @@ describe("SentryAdapter Tests", () => {
       expect(mockSentry.captureMessage).toHaveBeenCalledWith("Test error", SentrySeverity.Error)
     })
   })
+
+  describe("Severity mapping", () => {
+    it("should send debug and trace messages with the debug level", () => {
+      sentryAdapter = new SentryAdapter(mockSentry, Severity.Trace)
+
+      sentryAdapter.trace("Trace message")
+      sentryAdapter.debug("Debug message")
+
+      expect(mockSentry.captureMessage).toHaveBeenCalledWith("Trace message", SentrySeverity.Debug)
+      expect(mockSentry.captureMessage).toHaveBeenCalledWith("Debug message", SentrySeverity.Debug)
+    })
+  })
+
+  describe("safeStringify shared references", () => {
+    it("should keep shared references that are not circular", () => {
+      const shared = { id: 1 }
+
+      const result = (sentryAdapter as any).safeStringify({ a: shared, b: [shared] })
+
+      expect(JSON.parse(result)).toEqual({ a: { id: 1 }, b: [{ id: 1 }] })
+    })
+  })
+
+  describe("flush", () => {
+    it("should return the Sentry flush result", async () => {
+      mockSentry.flush = jest.fn(() => Promise.resolve(true))
+
+      await expect(sentryAdapter.flush(500)).resolves.toBe(true)
+      expect(mockSentry.flush).toHaveBeenCalledWith(500)
+    })
+  })
 })
