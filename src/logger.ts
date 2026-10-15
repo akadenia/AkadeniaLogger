@@ -1,4 +1,10 @@
-import { createDetailedObjectSummary } from "./serialization"
+import { createDetailedObjectSummary, mergeSensitiveKeyMasking, SensitiveKeyMasking } from "./serialization"
+
+export type Attachment = {
+  filename: string
+  data: string | Uint8Array | ArrayBuffer
+  contentType?: string
+}
 
 export enum Severity {
   Trace = 1,
@@ -21,11 +27,14 @@ export type Options = {
   response?: ApiResponse
   exception?: Error
   signozPayload?: any
+  attachments?: Attachment[]
+  masking?: SensitiveKeyMasking
 }
 
 export type Config = {
   consoleEnabled?: boolean
   consoleMinimumLogLevel?: Severity
+  masking?: SensitiveKeyMasking
 }
 
 export enum PredefinedLogEvents {
@@ -85,6 +94,12 @@ export class Logger implements ILogger {
     this.minimumLogLevel = defaultConfig?.consoleMinimumLogLevel || Severity.Trace
   }
 
+  private resolveOptions(options?: Options): Options | undefined {
+    const masking = mergeSensitiveKeyMasking(this.defaultConfig?.masking, options?.masking)
+    if (!masking) return options
+    return { ...options, masking }
+  }
+
   private checkConsole(severity: Severity, options?: Options): boolean {
     if (options?.forceConsole !== undefined) return !!options?.forceConsole
 
@@ -110,33 +125,36 @@ export class Logger implements ILogger {
 
   trace(message: string, options?: Options) {
     const sanitizedMessage = this.sanitizeLogMessage(message)
-    if (this.checkConsole(Severity.Trace, options)) logToConsole("trace", sanitizedMessage, options)
+    const resolved = this.resolveOptions(options)
+    if (this.checkConsole(Severity.Trace, resolved)) logToConsole("trace", sanitizedMessage, resolved)
 
     this.adapters.forEach((adapter) => {
       try {
-        adapter.trace(sanitizedMessage, options)
+        adapter.trace(sanitizedMessage, resolved)
       } catch {} // absorb adapter errors for now!
     })
   }
 
   debug(message: string, options?: Options) {
     const sanitizedMessage = this.sanitizeLogMessage(message)
-    if (this.checkConsole(Severity.Debug, options)) logToConsole("debug", sanitizedMessage, options)
+    const resolved = this.resolveOptions(options)
+    if (this.checkConsole(Severity.Debug, resolved)) logToConsole("debug", sanitizedMessage, resolved)
 
     this.adapters.forEach((adapter) => {
       try {
-        adapter.debug(sanitizedMessage, options)
+        adapter.debug(sanitizedMessage, resolved)
       } catch {} // absorb adapter errors for now!
     })
   }
 
   info(message: string, options?: Options) {
     const sanitizedMessage = this.sanitizeLogMessage(message)
-    if (this.checkConsole(Severity.Info, options)) logToConsole("info", sanitizedMessage, options)
+    const resolved = this.resolveOptions(options)
+    if (this.checkConsole(Severity.Info, resolved)) logToConsole("info", sanitizedMessage, resolved)
 
     this.adapters.forEach((adapter) => {
       try {
-        adapter.info(sanitizedMessage, options)
+        adapter.info(sanitizedMessage, resolved)
       } catch {} // absorb adapter errors for now!
     })
   }
@@ -154,36 +172,39 @@ export class Logger implements ILogger {
 
   warn(message: string, options?: Options) {
     const sanitizedMessage = this.sanitizeLogMessage(message)
-    if (this.checkConsole(Severity.Warn, options)) logToConsole("warn", sanitizedMessage, options)
+    const resolved = this.resolveOptions(options)
+    if (this.checkConsole(Severity.Warn, resolved)) logToConsole("warn", sanitizedMessage, resolved)
 
     this.adapters.forEach((adapter) => {
       try {
-        adapter.warn(sanitizedMessage, options)
+        adapter.warn(sanitizedMessage, resolved)
       } catch {} // absorb adapter errors for now!
     })
   }
 
   error(message: string, options?: Options) {
     const sanitizedMessage = this.sanitizeLogMessage(message)
-    if (this.checkConsole(Severity.Error, options)) logToConsole("error", sanitizedMessage, options)
+    const resolved = this.resolveOptions(options)
+    if (this.checkConsole(Severity.Error, resolved)) logToConsole("error", sanitizedMessage, resolved)
 
     this.adapters.forEach((adapter) => {
       try {
-        adapter.error(sanitizedMessage, options)
+        adapter.error(sanitizedMessage, resolved)
       } catch {} // absorb adapter errors for now!
     })
   }
 
   exception(message: string, exception: Error, options?: Options) {
     const sanitizedMessage = this.sanitizeLogMessage(message)
-    if (this.checkConsole(Severity.Error, options)) {
-      const exceptionDetails = createDetailedObjectSummary(exception, "exception")
+    const resolved = this.resolveOptions(options)
+    if (this.checkConsole(Severity.Error, resolved)) {
+      const exceptionDetails = createDetailedObjectSummary(exception, "exception", resolved?.masking)
       const enhancedMessage = `${sanitizedMessage}\n${exceptionDetails}`
-      logToConsole("error", enhancedMessage, options)
+      logToConsole("error", enhancedMessage, resolved)
     }
     this.adapters.forEach((adapter) => {
       try {
-        adapter.exception(sanitizedMessage, exception, options)
+        adapter.exception(sanitizedMessage, exception, resolved)
       } catch {} // absorb adapter errors for now!
     })
   }
