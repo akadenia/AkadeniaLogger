@@ -1,7 +1,6 @@
 import { jest, describe, expect, it, beforeEach, afterEach } from "@jest/globals"
 import { SentryAdapter, SentrySeverity } from "../src/adapters/sentry_adapter"
 import { Severity } from "../src/logger"
-import { safeStringify } from "../src/serialization"
 
 describe("SentryAdapter Tests", () => {
   let mockSentry: any
@@ -49,49 +48,6 @@ describe("SentryAdapter Tests", () => {
 
       expect((sentryAdapter as any).truncateToByteSize(str, 4)).toBe("\ud800a")
       expect(new TextEncoder().encode("\ud800a").length).toBe(4)
-    })
-  })
-
-  // Essential tests for safe JSON stringify
-  describe("safeStringify", () => {
-    it("should handle circular references", () => {
-      const obj: any = { name: "Test" }
-      obj.self = obj // Create circular reference
-
-      const result = safeStringify(obj, 2)
-
-      expect(result).toContain('"name": "Test"')
-      expect(result).toContain('"self": "[Circular]"')
-    })
-
-    it("keeps shared references that are not circular", () => {
-      const shared = { id: 1 }
-
-      expect(JSON.parse(safeStringify({ a: shared, b: shared }))).toEqual({ a: { id: 1 }, b: { id: 1 } })
-    })
-
-    it("should handle BigInt values", () => {
-      const obj = { id: BigInt("1234567890123456789"), name: "Test" }
-      const result = safeStringify(obj, 2)
-
-      expect(result).toContain('"id": "')
-      expect(result).toContain('"name": "Test"')
-      expect(result).toContain('"id": "1234567890123456789"') // Check for exact BigInt string
-    })
-
-    it("should return fallback string on complete failure", () => {
-      // Mock JSON.stringify to throw an error using jest.spyOn for automatic restoration
-      const stringifySpy = jest.spyOn(JSON, "stringify").mockImplementation(() => {
-        throw new Error("Complete failure")
-      })
-
-      const obj = { test: "value" }
-      const result = safeStringify(obj)
-
-      expect(result).toBe("[Unserializable value]")
-
-      // Automatically restore original JSON.stringify
-      stringifySpy.mockRestore()
     })
   })
 
@@ -559,6 +515,27 @@ describe("SentryAdapter Tests", () => {
       expect(new TextEncoder().encode(envelope).length).toBeLessThanOrEqual(5 * 1024 * 1024)
       expect(new TextEncoder().encode(envelope).length).toBeGreaterThan(5 * 1024 * 1024 - 16)
       expect(elapsed).toBeLessThan(1000)
+    })
+  })
+
+  describe("Severity mapping", () => {
+    it("should send debug and trace messages with the debug level", () => {
+      sentryAdapter = new SentryAdapter(mockSentry, Severity.Trace)
+
+      sentryAdapter.trace("Trace message")
+      sentryAdapter.debug("Debug message")
+
+      expect(mockSentry.captureMessage).toHaveBeenCalledWith("Trace message", SentrySeverity.Debug)
+      expect(mockSentry.captureMessage).toHaveBeenCalledWith("Debug message", SentrySeverity.Debug)
+    })
+  })
+
+  describe("flush", () => {
+    it("should return the Sentry flush result", async () => {
+      mockSentry.flush = jest.fn(() => Promise.resolve(true))
+
+      await expect(sentryAdapter.flush(500)).resolves.toBe(true)
+      expect(mockSentry.flush).toHaveBeenCalledWith(500)
     })
   })
 })

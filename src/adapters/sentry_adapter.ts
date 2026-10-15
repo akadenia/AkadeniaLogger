@@ -1,6 +1,5 @@
 import { Severity, ILogger, Options, ApiResponse, Attachment } from "../logger"
 import { maskSensitiveData, safeStringify, SensitiveKeyMasking } from "../serialization"
-import { Client, Scope, SeverityLevel } from "@sentry/types"
 
 const EXTRA_ATTACHMENT_THRESHOLD_BYTES = 16 * 1024
 const AUTO_ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024
@@ -17,8 +16,18 @@ export enum SentrySeverity {
   Fatal = "fatal",
 }
 
-interface SentryClient extends Client {
+type SeverityLevel = "fatal" | "error" | "warning" | "log" | "info" | "debug"
+
+// Minimal shape of the Sentry SDK used by this adapter (any @sentry/* SDK namespace satisfies it)
+interface Scope {
+  setExtra(key: string, extra: unknown): unknown
+}
+
+interface SentryClient {
   withScope(callback: (scope: Scope) => void): void
+  captureMessage(message: string, level?: SeverityLevel): unknown
+  captureException(exception: unknown, hint?: unknown, scope?: Scope): unknown
+  flush(timeout?: number): PromiseLike<boolean>
 }
 
 type NormalizedAttachment = {
@@ -288,13 +297,13 @@ export class SentryAdapter implements ILogger {
   trace(message: string, options?: Options | undefined): void {
     if (this.minimumLogLevel > Severity.Trace) return
 
-    this.captureMessage(message, SentrySeverity.Info, options)
+    this.captureMessage(message, SentrySeverity.Debug, options)
   }
 
   debug(message: string, options?: Options | undefined): void {
     if (this.minimumLogLevel > Severity.Debug) return
 
-    this.captureMessage(message, SentrySeverity.Info, options)
+    this.captureMessage(message, SentrySeverity.Debug, options)
   }
 
   info(message: string, options?: Options | undefined): void {
@@ -319,7 +328,7 @@ export class SentryAdapter implements ILogger {
     this.captureMessage(message, SentrySeverity.Fatal, { ...options, exception })
   }
 
-  flush(duration: number): void {
-    this.Sentry.flush(duration)
+  flush(duration: number): Promise<boolean> {
+    return Promise.resolve(this.Sentry.flush(duration))
   }
 }

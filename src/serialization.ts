@@ -41,6 +41,7 @@ export type SensitiveKeyMasking = {
 const MAX_DEPTH = 3
 const MAX_STRING_LENGTH = 200
 const MAX_ARRAY_ITEMS = 5
+// Shared references are serialized each time they appear, so cap the work on heavily shared graphs
 const MAX_STRINGIFY_OBJECTS = 10000
 
 export const mergeSensitiveKeyMasking = (
@@ -122,7 +123,7 @@ export const isSensitiveKey = (key: string, masking?: SensitiveKeyMasking): bool
  * Enhanced object serialization that shows more details than the basic "[object with X keys]"
  * @param obj - Object to serialize
  * @param depth - Current recursion depth (internal use)
- * @param visited - Set of visited objects to prevent circular references
+ * @param visited - Objects on the current path, used to detect circular references
  * @returns Detailed string representation of the object
  */
 export const serializeObjectDetailed = (
@@ -143,19 +144,21 @@ export const serializeObjectDetailed = (
     return String(obj)
   }
 
-  // Prevent circular references
+  // Prevent circular references. Only the current path is tracked (added before recursing,
+  // removed after), so shared non-circular references are still serialized
   if (visited.has(obj)) {
     return "[Circular Reference]"
   }
-  visited.add(obj)
 
   // Handle arrays
   if (Array.isArray(obj)) {
     if (obj.length === 0) return "[]"
 
+    visited.add(obj)
     const items = obj
       .slice(0, MAX_ARRAY_ITEMS)
       .map((item) => (depth < MAX_DEPTH ? serializeObjectDetailed(item, depth + 1, visited, masking) : "[...]"))
+    visited.delete(obj)
 
     const suffix = obj.length > MAX_ARRAY_ITEMS ? `, ... ${obj.length - MAX_ARRAY_ITEMS} more` : ""
     return `[${items.join(", ")}${suffix}]`
@@ -181,6 +184,7 @@ export const serializeObjectDetailed = (
 
   const entries: string[] = []
 
+  visited.add(obj)
   for (const key of keys) {
     try {
       const value = obj[key]
@@ -207,6 +211,7 @@ export const serializeObjectDetailed = (
       entries.push(`${key}: [Error accessing property]`)
     }
   }
+  visited.delete(obj)
 
   return `{${entries.join(", ")}}`
 }
@@ -330,7 +335,7 @@ export const createEnhancedResponseSummary = (response: any, masking?: Sensitive
     } else if (typeof value === "string" && value.length > 50) {
       details.push(`${key}: "${value.substring(0, 47)}..."`)
     } else {
-      details.push(`${key}: ${JSON.stringify(value)}`)
+      details.push(`${key}: ${safeStringify(value)}`)
     }
   }
 

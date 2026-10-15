@@ -69,7 +69,8 @@ export interface ILogger {
 
   predefinedEvent?(options: PredefinedLogOptions): void
 
-  flush?(duration: number): void
+  // A custom adapter may return nothing, Promise<void>, or Promise<boolean> (false means it timed out)
+  flush?(duration: number): void | Promise<void | boolean>
 }
 
 function logToConsole(logLevel: "warn" | "info" | "log" | "error" | "trace" | "debug", message: string, options?: Options) {
@@ -161,10 +162,9 @@ export class Logger implements ILogger {
 
   predefinedEvent(options: PredefinedLogOptions) {
     const message = "PREDEFINED EVENT:"
+    if (this.checkConsole(Severity.Debug, options)) logToConsole("log", message, options)
 
     this.adapters.forEach((adapter) => {
-      if (this.checkConsole(Severity.Debug, options)) logToConsole("log", message, options)
-
       try {
         adapter?.predefinedEvent?.(options)
       } catch {} // absorb adapter errors for now!
@@ -210,11 +210,20 @@ export class Logger implements ILogger {
     })
   }
 
-  flush(duration: number) {
-    this.adapters.forEach((adapter) => {
-      try {
-        adapter.flush?.(duration)
-      } catch {} // absorb adapter errors for now!
-    })
+  /**
+   * Flush all adapters that support it.
+   * @returns true if every adapter flushed within `duration` ms
+   */
+  async flush(duration: number): Promise<boolean> {
+    const results = await Promise.all(
+      this.adapters.map(async (adapter) => {
+        try {
+          return (await adapter.flush?.(duration)) !== false
+        } catch {
+          return false
+        }
+      }),
+    )
+    return results.every(Boolean)
   }
 }
