@@ -53,7 +53,7 @@ export class SentryAdapter implements ILogger {
   }
 
   private processData(extraData: any, response?: ApiResponse, masking?: SensitiveKeyMasking): any {
-    const processedData: any = maskSensitiveData({ ...(extraData || {}) }, masking)
+    const processedData: any = maskSensitiveData({ ...extraData }, masking)
 
     // Add trimmed response if provided
     if (response && typeof response === "object") {

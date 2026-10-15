@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "semi": false,
+  "trailingComma": "all",
+  "tabWidth": 2,
+  "singleQuote": false,
+  "jsxSingleQuote": false,
+  "bracketSameLine": true,
+  "printWidth": 130,
+  "arrowParens": "always",
+  "bracketSpacing": true,
+  "sortPackageJson": false,
+  "ignorePatterns": ["coverage", "cache", "dist", "package-lock.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "*.md", "*.MD"]
+}

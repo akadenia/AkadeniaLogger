@@ -203,7 +203,7 @@ export const serializeObjectDetailed = (
         }
         break
       }
-    } catch (error) {
+    } catch {
       entries.push(`${key}: [Error accessing property]`)
     }
   }
