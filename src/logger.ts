@@ -69,7 +69,8 @@ export interface ILogger {
 
   predefinedEvent?(options: PredefinedLogOptions): void
 
-  flush?(duration: number): void | Promise<boolean>
+  // A custom adapter may return nothing, Promise<void>, or Promise<boolean> (false means it timed out)
+  flush?(duration: number): void | Promise<void | boolean>
 }
 
 function logToConsole(logLevel: "warn" | "info" | "log" | "error" | "trace" | "debug", message: string, options?: Options) {
