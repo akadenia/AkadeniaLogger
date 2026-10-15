@@ -1,6 +1,7 @@
 import { jest, describe, expect, it, afterEach } from "@jest/globals"
 
 import { Logger, Severity } from "../src/logger"
+import { FirebaseAdapter } from "../src/adapters/firebase_adapter"
 
 afterEach(() => {
   jest.clearAllMocks()
@@ -484,5 +485,85 @@ describe("Logger adapter message sanitization", () => {
 
     expect(mockAdapter1.error).toHaveBeenCalledWith("Error Message", undefined)
     expect(mockAdapter2.error).toHaveBeenCalledWith("Error Message", undefined)
+  })
+
+  it("should forward attachments to adapters unchanged", () => {
+    const logger = new Logger()
+    const mockAdapter: any = {
+      error: jest.fn(),
+      name: "mock",
+      minimumLogLevel: Severity.Trace,
+    }
+
+    logger.addLogger(mockAdapter)
+    const options = {
+      attachments: [{ filename: "dump.json", data: '{"ok":true}', contentType: "application/json" }],
+    }
+
+    logger.error("Failed to process file", options)
+
+    expect(mockAdapter.error).toHaveBeenCalledWith("Failed to process file", options)
+  })
+
+  it("should forward logger masking config to adapters", () => {
+    const logger = new Logger({ masking: { add: ["ssn"] } })
+    const mockAdapter: any = {
+      error: jest.fn(),
+      name: "mock",
+      minimumLogLevel: Severity.Trace,
+    }
+
+    logger.addLogger(mockAdapter)
+    logger.error("Payment failed", { extraData: { userId: "u1" } })
+
+    expect(mockAdapter.error).toHaveBeenCalledWith("Payment failed", {
+      extraData: { userId: "u1" },
+      masking: { add: ["ssn"] },
+    })
+  })
+
+  it("should merge per-call masking with logger masking config", () => {
+    const logger = new Logger({ masking: { add: ["ssn"], exclude: ["session"] } })
+    const mockAdapter: any = {
+      error: jest.fn(),
+      name: "mock",
+      minimumLogLevel: Severity.Trace,
+    }
+
+    logger.addLogger(mockAdapter)
+    logger.error("Payment failed", {
+      extraData: { userId: "u1" },
+      masking: { keys: ["token"], exclude: ["authorization"] },
+    })
+
+    expect(mockAdapter.error).toHaveBeenCalledWith("Payment failed", {
+      extraData: { userId: "u1" },
+      masking: { keys: ["token"], add: ["ssn"], exclude: ["session", "authorization"] },
+    })
+  })
+})
+
+describe("Logger masking config with FirebaseAdapter", () => {
+  it("should not send masking rules as Firebase params or Crashlytics attributes", () => {
+    const analytics = {
+      setAnalyticsCollectionEnabled: jest.fn(() => Promise.resolve()),
+      logEvent: jest.fn(),
+    }
+    const crashlytics = { setAttributes: jest.fn(), recordError: jest.fn() }
+    const logger = new Logger({ masking: { add: ["ssn"] } })
+    logger.addLogger(
+      new FirebaseAdapter(
+        () => crashlytics,
+        () => analytics,
+        Severity.Debug,
+        true,
+      ),
+    )
+
+    logger.info("Opened")
+    logger.error("Failed", { extraData: { id: 1 } })
+
+    expect(analytics.logEvent).toHaveBeenCalledWith("Opened", {})
+    expect(crashlytics.setAttributes).toHaveBeenCalledWith({ extraData: { id: 1 } })
   })
 })
