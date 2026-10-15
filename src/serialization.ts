@@ -9,6 +9,7 @@ export const DEFAULT_SENSITIVE_KEY_PREFIXES = [
   "token",
   "password",
   "passwd",
+  "passphrase",
   "secret",
   "credential",
   "session",
@@ -20,11 +21,12 @@ export const DEFAULT_SENSITIVE_KEY_PREFIXES = [
   "privatekey",
 ] as const
 
-// Matched only as a whole word, so `sig` masks `sig`, `x-sig` and `sigHash` but not `signal`
-export const DEFAULT_SENSITIVE_KEY_WORDS = ["sig"] as const
+// Matched only as a whole word, so `sig` masks `sig`, `x-sig` and `sigHash` but not `signal`,
+// and `pin` masks `pinCode` but not `pinned`
+export const DEFAULT_SENSITIVE_KEY_WORDS = ["sig", "pin", "otp", "cvv"] as const
 
 export type SensitiveKeyMasking = {
-  /** Replace the default prefix list (and the default `sig` word). Omit to keep the defaults. */
+  /** Replace the default prefix list (and the default whole words). Omit to keep the defaults. */
   keys?: string[]
   /** Extra prefixes to mask, on top of the default list or `keys`. Matched at the start of any word in a key. */
   add?: string[]
@@ -39,6 +41,7 @@ export type SensitiveKeyMasking = {
 const MAX_DEPTH = 3
 const MAX_STRING_LENGTH = 200
 const MAX_ARRAY_ITEMS = 5
+const MAX_STRINGIFY_OBJECTS = 10000
 
 export const mergeSensitiveKeyMasking = (
   base?: SensitiveKeyMasking,
@@ -332,4 +335,39 @@ export const createEnhancedResponseSummary = (response: any, masking?: Sensitive
   }
 
   return details.join(", ")
+}
+
+/**
+ * JSON.stringify that never throws: BigInt values become strings, circular references become "[Circular]"
+ * (shared non-circular references are kept), objects past the first 10000 become "[Truncated]", and anything
+ * else unserializable returns a placeholder
+ * @param value - Value to serialize
+ * @param space - Optional indentation, as in JSON.stringify
+ * @returns JSON string, "undefined" for undefined, or "[Unserializable value]" (functions, symbols, errors)
+ */
+export const safeStringify = (value: any, space?: number): string => {
+  const ancestors: object[] = []
+  let objectCount = 0
+  try {
+    const json = JSON.stringify(
+      value,
+      function (this: any, _key, val) {
+        if (typeof val === "bigint") return val.toString()
+        if (typeof val === "object" && val !== null) {
+          // Track the current path only: pop back to this value's parent before checking
+          while (ancestors.length > 0 && ancestors[ancestors.length - 1] !== this) ancestors.pop()
+          if (ancestors.includes(val)) return "[Circular]"
+          if (++objectCount > MAX_STRINGIFY_OBJECTS) return "[Truncated]"
+          ancestors.push(val)
+        }
+        return val
+      },
+      space,
+    )
+    // JSON.stringify returns undefined for undefined, functions and symbols; never fall back to a function's source
+    if (json !== undefined) return json
+    return value === undefined ? "undefined" : "[Unserializable value]"
+  } catch {
+    return "[Unserializable value]"
+  }
 }

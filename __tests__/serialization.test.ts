@@ -154,8 +154,15 @@ describe("maskSensitiveData values", () => {
 })
 
 describe("isSensitiveKey whole words and excludes", () => {
-  it.each(["sig", "x-sig", "sigHash", "SIG"])("masks %s as a whole word", (key) => {
-    expect(isSensitiveKey(key)).toBe(true)
+  it.each(["sig", "x-sig", "sigHash", "SIG", "pin", "pinCode", "otp", "otp_code", "cvv", "cardCvv", "passphrase"])(
+    "masks %s",
+    (key) => {
+      expect(isSensitiveKey(key)).toBe(true)
+    },
+  )
+
+  it.each(["pinned", "pinterestUrl", "spinner", "options", "cvvx"])("does not mask %s", (key) => {
+    expect(isSensitiveKey(key)).toBe(false)
   })
 
   it("drops the sig word when keys replaces the defaults or it is excluded", () => {

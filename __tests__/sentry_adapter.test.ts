@@ -1,6 +1,7 @@
 import { jest, describe, expect, it, beforeEach, afterEach } from "@jest/globals"
 import { SentryAdapter, SentrySeverity } from "../src/adapters/sentry_adapter"
 import { Severity } from "../src/logger"
+import { safeStringify } from "../src/serialization"
 
 describe("SentryAdapter Tests", () => {
   let mockSentry: any
@@ -36,6 +37,19 @@ describe("SentryAdapter Tests", () => {
       expect(resultBytes).toBeLessThanOrEqual(100)
       expect(resultBytes).toBeGreaterThan(90) // Should be close to the limit
     })
+
+    it("never splits a surrogate pair", () => {
+      const result = (sentryAdapter as any).truncateToByteSize("a😊😊", 7) // 1 + 4 bytes fit, the next emoji does not
+
+      expect(result).toBe("a😊")
+    })
+
+    it("counts lone surrogates as the 3 bytes they encode to", () => {
+      const str = "\ud800ab"
+
+      expect((sentryAdapter as any).truncateToByteSize(str, 4)).toBe("\ud800a")
+      expect(new TextEncoder().encode("\ud800a").length).toBe(4)
+    })
   })
 
   // Essential tests for safe JSON stringify
@@ -44,15 +58,21 @@ describe("SentryAdapter Tests", () => {
       const obj: any = { name: "Test" }
       obj.self = obj // Create circular reference
 
-      const result = (sentryAdapter as any).safeStringify(obj, 2)
+      const result = safeStringify(obj, 2)
 
       expect(result).toContain('"name": "Test"')
       expect(result).toContain('"self": "[Circular]"')
     })
 
+    it("keeps shared references that are not circular", () => {
+      const shared = { id: 1 }
+
+      expect(JSON.parse(safeStringify({ a: shared, b: shared }))).toEqual({ a: { id: 1 }, b: { id: 1 } })
+    })
+
     it("should handle BigInt values", () => {
       const obj = { id: BigInt("1234567890123456789"), name: "Test" }
-      const result = (sentryAdapter as any).safeStringify(obj, 2)
+      const result = safeStringify(obj, 2)
 
       expect(result).toContain('"id": "')
       expect(result).toContain('"name": "Test"')
@@ -66,9 +86,9 @@ describe("SentryAdapter Tests", () => {
       })
 
       const obj = { test: "value" }
-      const result = (sentryAdapter as any).safeStringify(obj)
+      const result = safeStringify(obj)
 
-      expect(result).toBe("[Unserializable extra-data]")
+      expect(result).toBe("[Unserializable value]")
 
       // Automatically restore original JSON.stringify
       stringifySpy.mockRestore()
@@ -482,6 +502,15 @@ describe("SentryAdapter Tests", () => {
       expect(extra).toContain("[TRUNCATED]")
       expect(extra).toContain("xxx")
       expect(new TextEncoder().encode(extra).length).toBeLessThanOrEqual(16 * 1024)
+    })
+
+    it("should keep shared references in extra instead of marking them circular", () => {
+      const address = { city: "Beirut" }
+      sentryAdapter.error("Test error", { extraData: { billing: address, shipping: address } })
+
+      const extra = mockScope.setExtra.mock.calls.find((call: any[]) => call[0] === "extra-data")?.[1] as string
+
+      expect(JSON.parse(extra)).toEqual({ billing: { city: "Beirut" }, shipping: { city: "Beirut" } })
     })
 
     it("should mask sensitive keys in extra and extra-data.json", () => {

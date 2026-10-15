@@ -1,5 +1,5 @@
 import { Severity, ILogger, Options, ApiResponse, Attachment } from "../logger"
-import { maskSensitiveData, SensitiveKeyMasking } from "../serialization"
+import { maskSensitiveData, safeStringify, SensitiveKeyMasking } from "../serialization"
 import { Client, Scope, SeverityLevel } from "@sentry/types"
 
 const EXTRA_ATTACHMENT_THRESHOLD_BYTES = 16 * 1024
@@ -66,54 +66,22 @@ export class SentryAdapter implements ILogger {
     return processedData
   }
 
-  private safeStringify(value: any, space?: number): string {
-    const seen = new WeakSet()
-    try {
-      return JSON.stringify(
-        value,
-        (key, val) => {
-          if (typeof val === "bigint") return val.toString()
-          if (typeof val === "object" && val !== null) {
-            if (seen.has(val)) return "[Circular]"
-            seen.add(val)
-          }
-          return val
-        },
-        space,
-      )!
-    } catch {
-      return "[Unserializable extra-data]"
-    }
-  }
-
+  // One pass over UTF-16 code units: a binary search re-encodes the string on every step, which is slow
+  // on multi-MB payloads. A surrogate pair is 4 UTF-8 bytes and is never split.
   private truncateToByteSize(str: string, maxBytes: number): string {
-    const encoder = new TextEncoder()
-    let truncated = str
-
-    // Use binary search for better performance on large strings
-    if (encoder.encode(truncated).length <= maxBytes) {
-      return truncated
+    let bytes = 0
+    let end = 0
+    while (end < str.length) {
+      const code = str.charCodeAt(end)
+      const next = str.charCodeAt(end + 1)
+      const isPair = code >= 0xd800 && code <= 0xdbff && next >= 0xdc00 && next <= 0xdfff
+      const size = isPair ? 4 : code < 0x80 ? 1 : code < 0x800 ? 2 : 3
+      if (bytes + size > maxBytes) break
+      bytes += size
+      end += isPair ? 2 : 1
     }
 
-    // Binary search to find the optimal truncation point
-    let left = 0
-    let right = str.length
-    let bestFit = 0
-
-    while (left <= right) {
-      const mid = Math.floor((left + right) / 2)
-      const testStr = str.substring(0, mid)
-      const byteSize = encoder.encode(testStr).length
-
-      if (byteSize <= maxBytes) {
-        bestFit = mid
-        left = mid + 1
-      } else {
-        right = mid - 1
-      }
-    }
-
-    return str.substring(0, bestFit)
+    return str.substring(0, end)
   }
 
   private isSmallScalar(value: unknown): boolean {
@@ -149,7 +117,7 @@ export class SentryAdapter implements ILogger {
 
     // Set last so an extraData field named "notice" can't hide the pointer to the attachment
     summary.notice = EXTRA_DATA_ATTACHMENT_NOTICE
-    return this.safeStringify(summary, 4)
+    return safeStringify(summary, 4)
   }
 
   // One pass over the escaped string: stringifying and encoding candidates in a binary search
@@ -184,10 +152,8 @@ export class SentryAdapter implements ILogger {
     return `${prefix}${escaped.substring(0, end)}${suffix}`
   }
 
-  private truncateDataIfNeeded(processedData: any): string {
+  private truncateDataIfNeeded(dataString: string): string {
     const encoder = new TextEncoder()
-    const dataString = this.safeStringify(processedData, 4)
-
     if (encoder.encode(dataString).length <= EXTRA_ATTACHMENT_THRESHOLD_BYTES) {
       return dataString
     }
@@ -196,18 +162,23 @@ export class SentryAdapter implements ILogger {
     return `${this.truncateToByteSize(dataString, EXTRA_ATTACHMENT_THRESHOLD_BYTES - reservedBytes)}${INLINE_TRUNCATED_SUFFIX}`
   }
 
-  private prepareExtraData(processedData: any): { extraString: string; autoAttachment?: NormalizedAttachment } {
+  private prepareExtraData(processedData: any): {
+    dataString: string
+    extraString: string
+    autoAttachment?: NormalizedAttachment
+  } {
     const encoder = new TextEncoder()
-    const dataString = this.safeStringify(processedData, 4)
+    const dataString = safeStringify(processedData, 4)
     const dataSize = encoder.encode(dataString).length
 
     if (dataSize <= EXTRA_ATTACHMENT_THRESHOLD_BYTES) {
-      return { extraString: dataString }
+      return { dataString, extraString: dataString }
     }
 
     const attachmentData = dataSize > AUTO_ATTACHMENT_MAX_BYTES ? this.buildTruncatedJsonEnvelope(dataString) : dataString
 
     return {
+      dataString,
       extraString: this.buildSearchableExtraSummary(processedData),
       autoAttachment: {
         filename: EXTRA_DATA_ATTACHMENT_FILENAME,
@@ -263,12 +234,13 @@ export class SentryAdapter implements ILogger {
     this.Sentry.withScope((scope: Scope) => {
       if (options?.extraData || options?.response) {
         const processedData = this.processData(options.extraData, options.response, options.masking)
-        const { extraString, autoAttachment } = this.prepareExtraData(processedData)
+        const { dataString, extraString, autoAttachment } = this.prepareExtraData(processedData)
         if (autoAttachment) {
           if (this.tryAddAttachment(scope, autoAttachment)) {
             scope.setExtra("extra-data", extraString)
           } else {
-            scope.setExtra("extra-data", this.truncateDataIfNeeded(processedData))
+            // Old SDKs without attachments: reuse the string already built instead of serializing again
+            scope.setExtra("extra-data", this.truncateDataIfNeeded(dataString))
           }
         } else {
           scope.setExtra("extra-data", extraString)
@@ -294,7 +266,10 @@ export class SentryAdapter implements ILogger {
             masking: _masking,
             ...optionsForExtra
           } = options
-          scope.setExtra("options", this.truncateDataIfNeeded(maskSensitiveData(optionsForExtra, options.masking)))
+          scope.setExtra(
+            "options",
+            this.truncateDataIfNeeded(safeStringify(maskSensitiveData(optionsForExtra, options.masking), 4)),
+          )
           capturedNonError = true
         }
 
