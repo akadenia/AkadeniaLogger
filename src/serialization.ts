@@ -86,7 +86,7 @@ export const serializeObjectDetailed = (obj: any, depth: number = 0, visited: We
         }
         break
       }
-    } catch (error) {
+    } catch {
       entries.push(`${key}: [Error accessing property]`)
     }
   }

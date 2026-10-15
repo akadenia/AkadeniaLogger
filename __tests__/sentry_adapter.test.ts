@@ -1,6 +1,6 @@
 import { jest, describe, expect, it, beforeEach, afterEach } from "@jest/globals"
 import { SentryAdapter, SentrySeverity } from "../src/adapters/sentry_adapter"
-import { Logger, Severity } from "../src/logger"
+import { Severity } from "../src/logger"
 
 describe("SentryAdapter Tests", () => {
   let mockSentry: any

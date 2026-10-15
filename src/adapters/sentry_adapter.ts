@@ -40,7 +40,7 @@ export class SentryAdapter implements ILogger {
 
   private processData(extraData: any, response?: ApiResponse): any {
     // Accommodate extraData first (Sentry has 16kb limit)
-    const processedData: any = { ...(extraData || {}) }
+    const processedData: any = { ...extraData }
 
     // Add trimmed response if provided
     if (response && typeof response === "object") {
