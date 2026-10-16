@@ -1,3 +1,17 @@
+## [3.3.1](https://github.com/akadenia/AkadeniaLogger/compare/3.3.0...3.3.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* **adapters:** harden signoz, firebase and sentry adapters ([#82](https://github.com/akadenia/AkadeniaLogger/issues/82)) ([3b80da8](https://github.com/akadenia/AkadeniaLogger/commit/3b80da88df843217e93b3bd8b4a1f8a2b134a15b))
+
+# [3.3.0](https://github.com/akadenia/AkadeniaLogger/compare/3.2.3...3.3.0) (2026-10-15)
+
+
+### Features
+
+* **logger:** add file attachments for log events ([#80](https://github.com/akadenia/AkadeniaLogger/issues/80)) ([85b27a1](https://github.com/akadenia/AkadeniaLogger/commit/85b27a1612d384a54bd2a7d55ff8a0e6a071e3c9))
+
 ## [3.2.3](https://github.com/akadenia/AkadeniaLogger/compare/3.2.2...3.2.3) (2026-07-21)
 
 
