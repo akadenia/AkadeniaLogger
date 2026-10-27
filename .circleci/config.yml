@@ -36,7 +36,7 @@ jobs:
     steps:
       - checkout
       - node/install:
-          node-version: "22"
+          node-version: "26.12.1"
           install-pnpm: true
       - node/install-packages:
           pkg-manager: pnpm
@@ -51,7 +51,7 @@ workflows:
       - build_lint_test_node:
           matrix:
             parameters:
-              node-version: ["22", "24", "26"]
+              node-version: ["26.12.1"]
       - build_lint_test:
           requires:
             - build_lint_test_node
