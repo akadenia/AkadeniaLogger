@@ -104,6 +104,16 @@ const JSON_CONSOLE_METHODS: Record<ConsoleLevel, "debug" | "info" | "warn" | "er
   error: "error",
 }
 
+// Arrays, Buffers, typed arrays and class instances go under extraData; spreading them would write indexed fields
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  if (value === null || typeof value !== "object") return false
+  const prototype = Object.getPrototypeOf(value)
+  return prototype === Object.prototype || prototype === null
+}
+
+// JSON.stringify leaves U+2028 and U+2029 raw, and sinks that split on Unicode line breaks would cut the entry there
+const escapeLineSeparators = (line: string) => line.replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029")
+
 function logJsonToConsole(
   level: ConsoleLevel,
   message: string,
@@ -114,12 +124,12 @@ function logJsonToConsole(
   const entry: Record<string, unknown> = { msg: message, level }
   if (extraData !== undefined) {
     const masked = maskSensitiveData(extraData, masking)
-    if (masked !== null && typeof masked === "object" && !Array.isArray(masked)) Object.assign(entry, masked)
+    if (isPlainObject(masked)) Object.assign(entry, masked)
     else entry.extraData = masked
   }
   // msg and level (and the exception fields) win over extraData keys with the same name
   Object.assign(entry, fields, { msg: message, level })
-  console[JSON_CONSOLE_METHODS[level]](safeStringify(entry))
+  console[JSON_CONSOLE_METHODS[level]](escapeLineSeparators(safeStringify(entry)))
 }
 
 export class Logger implements ILogger {
@@ -166,7 +176,7 @@ export class Logger implements ILogger {
       .split("")
       .filter((char) => {
         const code = char.charCodeAt(0)
-        return code >= 32 && code !== 127 && (code < 128 || code > 159)
+        return code >= 32 && code !== 127 && (code < 128 || code > 159) && code !== 0x2028 && code !== 0x2029
       })
       .join("")
   }
@@ -211,7 +221,8 @@ export class Logger implements ILogger {
     const message = "PREDEFINED EVENT:"
     if (this.checkConsole(Severity.Debug, options)) {
       if (this.defaultConfig?.consoleFormat === "json") {
-        logJsonToConsole("info", "PREDEFINED EVENT", options.extraData, this.defaultConfig?.masking, {
+        // debug matches the severity these events are gated at, so the level field agrees with consoleMinimumLogLevel
+        logJsonToConsole("debug", "PREDEFINED EVENT", options.extraData, this.defaultConfig?.masking, {
           event: options.type,
         })
       } else {
