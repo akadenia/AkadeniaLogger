@@ -1,4 +1,10 @@
-import { createDetailedObjectSummary, mergeSensitiveKeyMasking, SensitiveKeyMasking } from "./serialization"
+import {
+  createDetailedObjectSummary,
+  maskSensitiveData,
+  mergeSensitiveKeyMasking,
+  safeStringify,
+  SensitiveKeyMasking,
+} from "./serialization"
 
 export type Attachment = {
   filename: string
@@ -31,9 +37,13 @@ export type Options = {
   masking?: SensitiveKeyMasking
 }
 
+export type ConsoleFormat = "pretty" | "json"
+
 export type Config = {
   consoleEnabled?: boolean
   consoleMinimumLogLevel?: Severity
+  // "pretty" (default) prints the message and an extraData object; "json" prints one JSON line per entry
+  consoleFormat?: ConsoleFormat
   masking?: SensitiveKeyMasking
 }
 
@@ -83,6 +93,45 @@ function logToConsole(logLevel: "warn" | "info" | "log" | "error" | "trace" | "d
   }
 }
 
+type ConsoleLevel = "trace" | "debug" | "info" | "warn" | "error"
+
+// console.trace prints a stack trace in Node, which would split a JSON entry over several lines
+const JSON_CONSOLE_METHODS: Record<ConsoleLevel, "debug" | "info" | "warn" | "error"> = {
+  trace: "debug",
+  debug: "debug",
+  info: "info",
+  warn: "warn",
+  error: "error",
+}
+
+// Arrays, Buffers, typed arrays and class instances go under extraData; spreading them would write indexed fields
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  if (value === null || typeof value !== "object") return false
+  const prototype = Object.getPrototypeOf(value)
+  return prototype === Object.prototype || prototype === null
+}
+
+// JSON.stringify leaves U+2028 and U+2029 raw, and sinks that split on Unicode line breaks would cut the entry there
+const escapeLineSeparators = (line: string) => line.replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029")
+
+function logJsonToConsole(
+  level: ConsoleLevel,
+  message: string,
+  extraData: any,
+  masking?: SensitiveKeyMasking,
+  fields?: Record<string, unknown>,
+) {
+  const entry: Record<string, unknown> = { msg: message, level }
+  if (extraData !== undefined) {
+    const masked = maskSensitiveData(extraData, masking)
+    if (isPlainObject(masked)) Object.assign(entry, masked)
+    else entry.extraData = masked
+  }
+  // msg and level (and the exception fields) win over extraData keys with the same name
+  Object.assign(entry, fields, { msg: message, level })
+  console[JSON_CONSOLE_METHODS[level]](escapeLineSeparators(safeStringify(entry)))
+}
+
 export class Logger implements ILogger {
   name: string = "root"
   defaultConfig?: Config
@@ -109,6 +158,14 @@ export class Logger implements ILogger {
     return !!this.defaultConfig?.consoleEnabled
   }
 
+  private writeConsole(level: ConsoleLevel, message: string, options?: Options) {
+    if (this.defaultConfig?.consoleFormat === "json") {
+      logJsonToConsole(level, message, options?.extraData, options?.masking)
+    } else {
+      logToConsole(level, message, options)
+    }
+  }
+
   addLogger(logger: ILogger): void {
     this.adapters.push(logger)
   }
@@ -119,7 +176,7 @@ export class Logger implements ILogger {
       .split("")
       .filter((char) => {
         const code = char.charCodeAt(0)
-        return code >= 32 && code !== 127 && (code < 128 || code > 159)
+        return code >= 32 && code !== 127 && (code < 128 || code > 159) && code !== 0x2028 && code !== 0x2029
       })
       .join("")
   }
@@ -127,7 +184,7 @@ export class Logger implements ILogger {
   trace(message: string, options?: Options) {
     const sanitizedMessage = this.sanitizeLogMessage(message)
     const resolved = this.resolveOptions(options)
-    if (this.checkConsole(Severity.Trace, resolved)) logToConsole("trace", sanitizedMessage, resolved)
+    if (this.checkConsole(Severity.Trace, resolved)) this.writeConsole("trace", sanitizedMessage, resolved)
 
     this.adapters.forEach((adapter) => {
       try {
@@ -139,7 +196,7 @@ export class Logger implements ILogger {
   debug(message: string, options?: Options) {
     const sanitizedMessage = this.sanitizeLogMessage(message)
     const resolved = this.resolveOptions(options)
-    if (this.checkConsole(Severity.Debug, resolved)) logToConsole("debug", sanitizedMessage, resolved)
+    if (this.checkConsole(Severity.Debug, resolved)) this.writeConsole("debug", sanitizedMessage, resolved)
 
     this.adapters.forEach((adapter) => {
       try {
@@ -151,7 +208,7 @@ export class Logger implements ILogger {
   info(message: string, options?: Options) {
     const sanitizedMessage = this.sanitizeLogMessage(message)
     const resolved = this.resolveOptions(options)
-    if (this.checkConsole(Severity.Info, resolved)) logToConsole("info", sanitizedMessage, resolved)
+    if (this.checkConsole(Severity.Info, resolved)) this.writeConsole("info", sanitizedMessage, resolved)
 
     this.adapters.forEach((adapter) => {
       try {
@@ -162,7 +219,16 @@ export class Logger implements ILogger {
 
   predefinedEvent(options: PredefinedLogOptions) {
     const message = "PREDEFINED EVENT:"
-    if (this.checkConsole(Severity.Debug, options)) logToConsole("log", message, options)
+    if (this.checkConsole(Severity.Debug, options)) {
+      if (this.defaultConfig?.consoleFormat === "json") {
+        // debug matches the severity these events are gated at, so the level field agrees with consoleMinimumLogLevel
+        logJsonToConsole("debug", "PREDEFINED EVENT", options.extraData, this.defaultConfig?.masking, {
+          event: options.type,
+        })
+      } else {
+        logToConsole("log", message, options)
+      }
+    }
 
     this.adapters.forEach((adapter) => {
       try {
@@ -174,7 +240,7 @@ export class Logger implements ILogger {
   warn(message: string, options?: Options) {
     const sanitizedMessage = this.sanitizeLogMessage(message)
     const resolved = this.resolveOptions(options)
-    if (this.checkConsole(Severity.Warn, resolved)) logToConsole("warn", sanitizedMessage, resolved)
+    if (this.checkConsole(Severity.Warn, resolved)) this.writeConsole("warn", sanitizedMessage, resolved)
 
     this.adapters.forEach((adapter) => {
       try {
@@ -186,7 +252,7 @@ export class Logger implements ILogger {
   error(message: string, options?: Options) {
     const sanitizedMessage = this.sanitizeLogMessage(message)
     const resolved = this.resolveOptions(options)
-    if (this.checkConsole(Severity.Error, resolved)) logToConsole("error", sanitizedMessage, resolved)
+    if (this.checkConsole(Severity.Error, resolved)) this.writeConsole("error", sanitizedMessage, resolved)
 
     this.adapters.forEach((adapter) => {
       try {
@@ -198,7 +264,12 @@ export class Logger implements ILogger {
   exception(message: string, exception: Error, options?: Options) {
     const sanitizedMessage = this.sanitizeLogMessage(message)
     const resolved = this.resolveOptions(options)
-    if (this.checkConsole(Severity.Error, resolved)) {
+    if (this.checkConsole(Severity.Error, resolved) && this.defaultConfig?.consoleFormat === "json") {
+      logJsonToConsole("error", sanitizedMessage, resolved?.extraData, resolved?.masking, {
+        error: exception?.message ?? String(exception),
+        ...(exception?.stack ? { stack: exception.stack } : {}),
+      })
+    } else if (this.checkConsole(Severity.Error, resolved)) {
       const exceptionDetails = createDetailedObjectSummary(exception, "exception", resolved?.masking)
       const enhancedMessage = `${sanitizedMessage}\n${exceptionDetails}`
       logToConsole("error", enhancedMessage, resolved)
